@@ -1,0 +1,38 @@
+MPLINK 5.09, LINKER
+Linker Map File - Created Wed Oct 14 15:35:47 2020
+
+                                 Section Info
+                  Section       Type    Address   Location Size(Bytes)
+                ---------  ---------  ---------  ---------  ---------
+                   .org_0       code   0x000000    program   0x00002a
+                   .cinit    romdata   0x000015    program   0x000004
+.config_2007_BUILD/DEFAULT/PRODUCTION/TUTOR_P       code   0x002007    program   0x000002
+
+
+
+                              Program Memory Usage 
+                               Start         End      
+                           ---------   ---------      
+                            0x000000    0x000016      
+                            0x002007    0x002007      
+            24 out of 8454 program addresses used, program memory utilization is 0%
+
+
+
+                              Symbols - Sorted by Name
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                      non   0x000010    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                      oui   0x000012    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                    start   0x00000f    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+
+
+
+                              Symbols - Sorted by Address
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                    start   0x00000f    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                      non   0x000010    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                      oui   0x000012    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+
+

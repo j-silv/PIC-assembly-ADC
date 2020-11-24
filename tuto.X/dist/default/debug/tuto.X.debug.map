@@ -1,0 +1,46 @@
+MPLINK 5.09, LINKER
+Linker Map File - Created Wed Oct 14 15:36:08 2020
+
+                                 Section Info
+                  Section       Type    Address   Location Size(Bytes)
+                ---------  ---------  ---------  ---------  ---------
+                   .org_0       code   0x000000    program   0x00002a
+                   .cinit    romdata   0x001800    program   0x000004
+                    dbgP0       code   0x001f00    program   0x000200
+.config_2007_BUILD/DEFAULT/DEBUG/TUTOR_PIC.O       code   0x002007    program   0x000002
+                    dbgD0      udata   0x000070       data   0x000001
+                    dbgD1      udata   0x0000f0       data   0x000001
+                    dbgD2      udata   0x000170       data   0x000001
+                    dbgD3      udata   0x0001e5       data   0x00000b
+                    dbgD4      udata   0x0001f0       data   0x000001
+
+
+
+                              Program Memory Usage 
+                               Start         End      
+                           ---------   ---------      
+                            0x000000    0x000014      
+                            0x001800    0x001801      
+                            0x001f00    0x001fff      
+                            0x002007    0x002007      
+            280 out of 8454 program addresses used, program memory utilization is 3%
+
+
+
+                              Symbols - Sorted by Name
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                      non   0x000010    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                      oui   0x000012    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                    start   0x00000f    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+
+
+
+                              Symbols - Sorted by Address
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                    start   0x00000f    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                      non   0x000010    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+                      oui   0x000012    program     static U:\TP\TPPIC\tuto.X\tutor_pic.asm
+
+
