@@ -1,42 +1,52 @@
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  1
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00001 ;==========================================================
+                      00001 ;______________________________________________________________________________
                       00002 ; TP Master 1 - MNE (2020-2021)
                       00003 ; Justin SILVER
-                      00004 ; ==========================================================
-                      00005 ; systeme d'acquisition pour PC
+                      00004 ;
+                      00005 ; systeme d'acquisition, tension --> PC avec un
                       00006 ; microcontroleur - PIC16F877
-                      00007 ; ==========================================================
-                      00008 ; Ce programme lit une tension brute venant de l'ADC, le
+                      00007 ;
+                      00008 ; Ce programme lit une tension binaire venant de l'ADC, le
                       00009 ; convertit en decimal et apres en ASCII.
                       00010 ; Ensuite, le resultat est envoye via USART au terminal PC
-                      00011 ; ==========================================================
+                      00011 ; ______________________________________________________________________________
                       00012 
-                      00013 ; ==========================================================
-                      00014 ;                    variables/constantes
-                      00015 ; ==========================================================
-                      00016 
-  00000070            00017 W_TEMP         EQU 0x70     ; pour context sauvegarde (ISR)
-  00000071            00018 STATUS_TEMP    EQU 0x71     ; pour context sauvegarde (ISR)
-                      00019 ;PCLATH_TEMP   EQU 0x72     ; necessaire si plusieurs pages memoires programmes
-                      00020                             ; sont utilises
-  00000073            00021 TENSION_BRUTE  EQU 0x73     ; registre en memoire qui contient le resultat
-                      00022                             ; binaire (tension) de l'ADC
-  00000019            00023 X_VAL_SPBRG    EQU D'25'    ; prescaler valeur pour le baud-rate generateur
-  0000002C            00024 VIRGULE_ASCII  EQU 0x2C
-                      00025 
-                      00026 ; ==========================================================
-                      00027 ;                    configuration du uC
-                      00028 ; ==========================================================
-                      00029 
-                      00030     list p=16f877
-                      00031 
-                      00032     ; Inclure le fichier de description des d�finitions du 16f877
-                      00033     include "p16f877.inc"
+                      00013 ; ==============================================================================
+                      00014 ;                           variables/constantes
+                      00015 ; ==============================================================================
+                      00016 ;#define INTERRUPTS_ON      ; si commenté, les interrupts ne sont pas enables
+                      00017 
+  00000021            00018 PTR_PROMPT_MSG   EQU 0x21   ; pointe a msg prompt pour l'utilisateur (6 bytes)
+                      00019                             ; "Test\r\n" (bank 0)
+  00000006            00020 SIZE_PROMPT_MSG  EQU 0x06   ; prompt message is 6 bytes long
+                      00021 
+                      00022 ; *
+  00000070            00023 W_TEMP           EQU 0x70   ; pour context sauvegarde (ISR)
+  00000071            00024 STATUS_TEMP      EQU 0x71   ; pour context sauvegarde (ISR)
+  00000072            00025 ADC_RESULT       EQU 0x72   ; contient le resultat
+                      00026                                         ; binaire (tension) de l'ADC
+  00000073            00027 TIMER1_V_COUNT   EQU 0x73   ; contient le nombre de fois le peripherique
+                      00028                             ; Timer1 a fait un overflow
+  00000074            00029 TX_CHAR_COUNT    EQU 0x74   ; contient le nombre de caracteres pas encore envoye via
+                      00030                             ; USART pour un transfert donnee
+                      00031 ;*
+                      00032 
+  00000019            00033 X_VAL_SPBRG      EQU D'25'  ; prescaler valeur pour le baud-rate generateur
+  0000002C            00034 VIRGULE_ASCII    EQU 0x2C
+                      00035 
+                      00036 ; * - accesible de n'importe quelle page de memoire donne
+                      00037 
+                      00038 ; ==============================================================================
+                      00039 ;                               configuration du uC
+                      00040 ; ==============================================================================
+                      00041 
+                      00042     list p=16f877
+                      00043     include "p16f877.inc"
                       00001         LIST
                       00002 
                       00003 ;==========================================================================
@@ -47,183 +57,323 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00008 ;==========================================================================
                       00009 
                       00541         LIST
-                      00034 
-                      00035     ; PIC16F877 Configuration Bit Settings
-                      00036     ; Assembly source line config statements
-                      00037     ; CONFIG
-                      00038     ; __config 0xFF39
-2007   3F39           00039     __CONFIG _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _LVP_OFF & _CPD_OFF & _WRT_ON
-                      00040 
-                      00041     org         0x000            ; Commencer au RESET vector
-0000   018A           00042     clrf        PCLATH           ; 1ere page memoire programme selectionne
-Error[113]  : Symbol not previously defined (config_uC)
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  2
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-0001   2800           00043     goto        config_uC           ; brancher pour configurer les peripheriques, les interrupts, etc.
                       00044 
-                      00045 ; ===========================================================
-                      00046 ;                Interrupt service routine (ISR)
-                      00047 ; ===========================================================
-                      00048 
-                      00049     org         0x004             ; interrupt vector location pour le PIC uC
-0004   00F0           00050     movwf       W_TEMP            ; Copy W to TEMP register
-0005   0E03           00051     swapf       STATUS, W         ; Swap status to be saved into W
-                      00052 
-                      00053 
-                      00054     ; cette instruction n'est pas necessaire car tous les X_TEMPs registres
-                      00055     ; sont communs pour toutes les pages de RAM
-0006   0183           00056     clrf        STATUS            ; selectionner bank 0, regardless of current bank
-                      00057                                   ; Clears IRP,RP1,RP0
+                      00045     ; PIC16F877 Configuration Bit Settings
+                      00046     ; Assembly source line config statements
+                      00047     ; CONFIG
+                      00048     ; __config 0xFF39
+2007   3F39           00049     __CONFIG _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _LVP_OFF & _CPD_OFF & _WRT_ON
+                      00050 
+                      00051     org         0x000            ; Commencer au RESET vector
+0000   018A           00052     clrf        PCLATH           ; 1ere page memoire programme selectionne
+0001   2???           00053     goto        ADC_config       ; brancher pour configurer les peripheriques, les interrupts, etc.
+                      00054 
+                      00055 ; ==============================================================================
+                      00056 ;                        Interrupt service routine (ISR)
+                      00057 ; ==============================================================================
                       00058 
-0007   00F1           00059     movwf         STATUS_TEMP     ; Save status to bank zero STATUS_TEMP register
-                      00060 
-                      00061     ; ces instructions ne sont pas necessaire car seulement la 1ere page mem program
-                      00062     ; est utilise dans ce programme
-                      00063     ;movf         PCLATH, W       ; Only required if using pages 1, 2 and/or 3
-                      00064     ;movwf        PCLATH_TEMP     ; Save PCLATH into W
-                      00065     ;clrf         PCLATH          ; Page zero, regardless of current page
-                      00066 
-                      00067     ; investiguer le status des flags pour determiner la source de l'interruption
-0008   1283 1303      00068     banksel       PIR1            ; PIR1 contient les flag bits pour les perihiques
-000A   1A0C           00069     btfsc         PIR1, TXIF      ; si le transmit empty flag est allume,
-                      00070     ; envoyer un nouveau char
-000B   2???           00071     call          TXIF_Callback
-                      00072 
-                      00073     ; au cas ou le ISR programme change de banc
-                      00074     ; cette instruction n'est pas necessaire car tous les X_TEMPs registres
-                      00075     ; sont communs pour toutes les pages de RAM
-000C   0183           00076     clrf          STATUS          ; selectionner bank 0, regardless of current bank
-                      00077                                   ; Clears IRP,RP1,RP0
-                      00078 
-                      00079     ; ces instructions ne sont pas necessaire car seulement la 1ere page mem program
-                      00080     ; est utilise dans ce programme
-                      00081     ;movf         PCLATH_TEMP, W  ; Restore PCLATH
-                      00082     ;movwf        PCLATH          ; Move W into PCLATH
-                      00083 
-000D   0E71           00084     swapf         STATUS_TEMP,W   ; Swap STATUS_TEMP register into W
-                      00085                                   ; (sets bank to original state)
-000E   0083           00086     movwf         STATUS          ; Move W into STATUS register
-000F   0EF0           00087     swapf         W_TEMP,F        ; Swap W_TEMP
-0010   0E70           00088     swapf         W_TEMP,W        ; Swap W_TEMP into W
-0011   0009           00089     retfie                        ; return from interrupt!
+                      00059 ; ------------------------------------
+                      00060 ;       Sauvegarder le contexte
+                      00061 ; ------------------------------------
+                      00062 
+                      00063     org         0x004             ; interrupt vector location pour le PIC uC
+0004   00F0           00064     movwf       W_TEMP            ; Copy W to TEMP register
+0005   0E03           00065     swapf       STATUS, W         ; Swap status to be saved into W
+0006   00F1           00066     movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
+                      00067 
+                      00068 ; -----------------------------------
+                      00069 ;           Flag checking
+                      00070 ; -----------------------------------
+                      00071 
+0007                  00072 RXIF_status
+0007   0000           00073     nop
+                      00074 
+0008                  00075 TMR1F_status
+0008   0000           00076     nop
+                      00077 
+0009                  00078 ADIF_status
+0009   0000           00079     nop
+                      00080 
+000A                  00081 TXIF_status
+000A   1283 1303      00082     banksel       PIR1            ; PIR1 contient les flag bits pour les perihiques
+000C   1A0C           00083     btfsc         PIR1, TXIF      ; si le transmit empty flag est allume,
+                      00084                                   ; envoyer un nouveau char
+000D   2???           00085     call          TXIF_Callback
+                      00086 
+                      00087 ; -------------------------------------
+                      00088 ;       Restaurer le contexte
+                      00089 ; -------------------------------------
                       00090 
-                      00091 ; ===========================================================
-                      00092 ;    configuration de l'ADC (entry point for configuration)
-                      00093 ; ===========================================================
-                      00094 
-Warning[205]: Found directive in column 1. (config)
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  3
+000E   0E71           00091     swapf         STATUS_TEMP,W   ; Swap STATUS_TEMP register into W
+                      00092                                   ; (sets bank to original state)
+000F   0083           00093     movwf         STATUS          ; Move W into STATUS register
+0010   0EF0           00094     swapf         W_TEMP,F        ; Swap W_TEMP
+0011   0E70           00095     swapf         W_TEMP,W        ; Swap W_TEMP into W
+0012   0009           00096     retfie                        ; return from interrupt
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  3
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-Error[128]  : Missing argument(s)
-                      00095 config
-0012   1683 1303      00096             banksel      ADCON1
-0014   300E           00097         movlw        B'00001110'  ; Left justify ,1 analog channel
+                      00097 
+                      00098 
+                      00099 ; ==============================================================================
+                      00100 ;                           Peripheral configuration
+                      00101 ; ==============================================================================
+                      00102 
+                      00103 ; ----------------------------------------------
+                      00104 ;       ADC (entry point for configuration)
+                      00105 ; ----------------------------------------------
+0013                  00106 ADC_config
+0013   1683 1303      00107             banksel      ADCON1
+                      00108         ; Left justify ,1 analog channel
+                      00109         ; VDD and VSS references
+0015   300E           00110         movlw        ( 0<<ADFM | 1<<PCFG3 | 1<<PCFG2 | 1<<PCFG1 | 0<<PCFG0 )
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0015   009F           00098         movwf        ADCON1       ; VDD and VSS references
-                      00099 
-0016   1283 1303      00100         banksel      ADCON0
-0018   3041           00101         movlw        B'01000001'  ; Fosc/8, A/D enabled
-0019   009F           00102         movwf        ADCON0
-                      00103 
-                      00104 ; ===========================================================
-                      00105 ;    configuration de l'usart (mode asynchronous full=duplex)
-                      00106 ; ===========================================================
-                      00107 
-                      00108 ; configure les entrees/sorties de l'usart (RC6/TX/CK and RC7/RX/DT)
-001A   1683 1303      00109     banksel     TRISC
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-001C   1307           00110     bcf         TRISC, TRISC6    ; TXUSART EST OUTPUT (RC6 -> sortie)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-001D   1787           00111     bsf         TRISC, TRISC7    ; RXUSART EST INPUT (RC7 -> entree)
+0016   009F           00111         movwf        ADCON1
                       00112 
-                      00113 ; configure le baud-rate de l'usart
-                      00114 ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
-                      00115 ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
-                      00116 ; valeur du registre SPBRG et est de 0...255
-                      00117 ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
-001E   1683 1303      00118     banksel     SPBRG
-0020   3019           00119     movlw       X_VAL_SPBRG
+0017   1283 1303      00113         banksel      ADCON0
+                      00114         ; Fosc/8, A/D enabled
+0019   3041           00115         movlw        ( 0 << ADCS1 | 1<<ADCS0 | 1<<ADON )
+001A   009F           00116         movwf        ADCON0
+                      00117 
+                      00118 ; ----------------------------------------------------
+                      00119 ;        USART (mode asynchronous full-duplex)
+                      00120 ; ----------------------------------------------------
+001B                  00121 USART_config
+                      00122     ; entrees/sorties (RC6/TX/CK and RC7/RX/DT)
+                      00123     ; TXUSART EST OUTPUT (RC6 -> sortie)
+                      00124     ; RXUSART EST INPUT (RC7 -> entree)
+001B   1683 1303      00125     banksel     TRISC
+001D   3080           00126     movlw       ( 0<<TRISC6 | 1<<TRISC7 )
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0021   0099           00120     movwf       SPBRG
-                      00121 
-                      00122 ; mettre en route le peripherique en mode asynchrone
-0022   1683 1303      00123     banksel     TXSTA
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0024   1218           00124     bcf         TXSTA, SYNC     ; mettre en mode asynchrone (sync OFF)
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0025   1518           00125     bsf         TXSTA, BRGH     ; mettre en mode high speed pour reduire l'erreur
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0026   1318           00126     bcf         TXSTA, TX9      ; mettre en 8-bit transmission mode
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0027   1298           00127     bcf         TXSTA, TXEN     ; mettre en route la transmission
+001E   0087           00127     movwf       TRISC
                       00128 
-                      00129     ; test to see if these OR operators are compiled
-0028   3007           00130     movlw       TXEN | TX9 | BRGH | SYNC
-                      00131 
-0029   1283 1303      00132     banksel     RCSTA
-002B   1798           00133     bsf         RCSTA, SPEN     ; peripherique serie est "enabled"
-                      00134 
-                      00135 ; mettre en route les interruptions
-                      00136     ; USART interrupt flags enable
-002C   1683 1303      00137     banksel     PIE1
+                      00129     ; USART baud-rate
+                      00130     ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
+                      00131     ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
+                      00132     ; valeur du registre SPBRG et est de 0...255
+                      00133     ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
+001F   1683 1303      00134     banksel     SPBRG
+0021   3019           00135     movlw       X_VAL_SPBRG
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  4
+0022   0099           00136     movwf       SPBRG
+                      00137 
+                      00138     ; mode asynchrone
+                      00139     ; high speed pour reduire l'erreur
+                      00140     ; 8-bit transmission mode
+                      00141     ; enable la transmission
+0023   1683 1303      00142     banksel     TXSTA
+0025   3004           00143     movlw           ( 0<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0026   0098           00144     movwf           TXSTA
+                      00145 
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  4
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-002E   160C           00138     bsf         PIE1, TXIE      ; enable le interrupt flag pour
-                      00139                                 ; le registre de transfert USART
-                      00140     ; USART interrupt and interrupt enable bit
-002F   1283 1303      00141     banksel     INTCON
-0031   170B           00142     bsf         INTCON, PEIE    ; perihique interrupt enable
-                      00143 
-                      00144     ; **apres que TOUT est configure, cette instruction peux etre execute**
-0032   178B           00145     bsf         INTCON, GIE     ; global interrupt enable
-                      00146 
-                      00147 ; ===========================================================
-                      00148 ;            sous=programme: lire tension de l'ADC
-                      00149 ; ===========================================================
-                      00150 
-0033   151F           00151 start      bsf      ADCON0,GO        ; demarrage de la conversion
-0034   191F           00152 non        btfsc    ADCON0,GO        ; attendre la fin de conversion
-0035   2???           00153            goto     non
-0036   081E           00154 oui        movf     ADRESH,W         ; mettre resultat (8 bits de poids fort)
-                      00155                                      ; de la conversion au reg de travail
-0037   00F3           00156            movwf    TENSION_BRUTE    ; sauvegarder resultat (tension) en memoire
-0038   2???           00157            goto     start            ; boucler sur la procedure de lecture
-                      00158 
-                      00159 ; ===========================================================
-                      00160 ;    sous=programme d'envoyer une lettre via USART
-                      00161 ; ===========================================================
-                      00162 
-                      00163 
-0039   3061           00164 TXIF_Callback    movlw    A'a'     ; move the ASCII code of "a" to w
-003A   0099           00165                  movwf    TXREG    ; write to USART transfer register
-003B   0008           00166                  return            ; return to ISR or whoever called this subprogram
-                      00167 
-                      00168 ; ===========================================================
-                      00169 ;    sous=programme de faire le transcodage ASCII
-                      00170 ; ===========================================================
-                      00171 
-                      00172 
+0027   1283 1303      00146     banksel     RCSTA
+0029   3080           00147     movlw       ( 1<<SPEN ) ; peripherique serie est "enabled"
+002A   0098           00148     movwf       RCSTA
+                      00149 
+002B   1283 1303      00150     banksel     TX_CHAR_COUNT
+002D   3000           00151     movlw       0x00        ; initaliser nombre de char envoye a 0
+002E   00F4           00152     movwf       TX_CHAR_COUNT
+                      00153 
+                      00154 ; ----------------------------------
+                      00155 ;              Timer1
+                      00156 ; ----------------------------------
+                      00157 
+002F                  00158 Timer1_config
+002F   1283 1303      00159     banksel     T1CON
+                      00160     ; Prescaler = 1:8
+                      00161     ; Oscillator shut off
+                      00162     ; Internal clock (Fosc/4) used
+                      00163     ; Timer enabled
+0031   3031           00164     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
+0032   0090           00165     movwf       T1CON
+                      00166 
+0033   3000           00167     movlw       0x00        ; initaliser nombre d'overflow compte a 0
+0034   00F3           00168     movwf       TIMER1_V_COUNT
+                      00169 
+                      00170 ; ==============================================================================
+                      00171 ;                           Interrupts configuration
+                      00172 ; ==============================================================================
                       00173 
-                      00174 ; ===========================================================
-                      00175 ;            programme principal (boucle infinie)
-                      00176 ; ===========================================================
-003C   0000           00177 main    nop
-003D   2???           00178         goto     main
-3F39                  00179         end                     ; fin du programme (directive d'assemblage)
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  5
+                      00174 #ifdef INTERRUPTS_ON
+                      00175 
+                      00176 PERIPH_INT_ENABLE
+                      00177     banksel     INTCON
+                      00178     movlw       ( 1<<PEIE ) ; ADC/USART peripheral interrupt enable
+                      00179     movwf       INTCON
+                      00180 
+                      00181 GLOBAL_INT_ENABLE
+                      00182     banksel     INTCON
+                      00183     movlw       ( 1<<GIE ) ; global interrupt enable
+                      00184     movwf       INTCON
+                      00185 
+                      00186 #endif
+                      00187 
+                      00188 ; ==============================================================================
+                      00189 ;                       Print prompt message to PC terminal
+                      00190 ; ==============================================================================
+0035                  00191 PRINT_PROMPT_MSG
+0035   2???           00192     call        LOAD_PROMPT_RAM   ; sizeof prompt msg and prompt msg are intialized
+                      00193 
+0036   1283 1303      00194     banksel     PIR1              ; selectionne le bank pour PIR1 (RP1, RP0)
+0038   1383           00195     bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
+                      00196 
+0039   3021           00197     movlw       PTR_PROMPT_MSG
+003A   0084           00198     movwf       FSR               ; point to the start of the prompt msg
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00199 
+003B                  00200 TEST_TXIF
+003B   1E0C           00201     btfss       PIR1, TXIF        ; test if the TX_REG is empty
+003C   2???           00202     goto        TEST_TXIF         ; sinon, attendre
+                      00203 
+003D   0800           00204     movf        INDF, W
+003E   0099           00205     movwf       TXREG             ; send first byte to USART TX register
+Message[305]: Using default destination of 1 (file).
+003F   0A84           00206     incf        FSR               ; increment pointer index to next char in prompt msg
+Message[305]: Using default destination of 1 (file).
+0040   0BF4           00207     decfsz      TX_CHAR_COUNT     ; decrement # of chars that remain to be sent
+0041   2???           00208     goto        TEST_TXIF         ; skip if the entire message has been sent
+                      00209                                   ; this would mean that TX_CHAR_COUNT went from 6 to 0
+                      00210 
+0042   2???           00211     goto        main              ; branch to endless loop
+                      00212 
+                      00213 ; ==============================================================================
+                      00214 ;                                  ISR callbacks
+                      00215 ; ==============================================================================
+                      00216 
+0043                  00217 RXIF_Callback
+0043   1683 1303      00218     banksel     PIE1
+0045   3001           00219     movlw       ( 1<<TMR1IE ) ; Timer1 interrupt enable
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0046   008C           00220     movwf       PIE1
+0047   0008           00221     return
+                      00222 
+0048                  00223 TMR1IF_Callback
+0048   1683 1303      00224     banksel     PIE1
+004A   3040           00225     movlw       ( 1<<ADIE ) ; ADC conversion done flag enable
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+004B   008C           00226     movwf       PIE1
+004C   0008           00227     return
+                      00228 
+004D                  00229 ADIF_Callback
+004D   1683 1303      00230     banksel     PIE1
+004F   3010           00231     movlw       ( 1<<TXIE ) ; USART TX flag enable
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0050   008C           00232     movwf       PIE1
+0051   0008           00233     return
+                      00234 
+0052                  00235 TXIF_Callback
+0052   1283 1303      00236     banksel     TXREG
+0054   3061           00237     movlw       A'a'     ; move the ASCII code of "a" to w
+0055   0099           00238     movwf       TXREG    ; write to USART transfer register
+0056   0008           00239     return              ; return to ISR or whoever called this subprogram
+                      00240 
+                      00241 
+                      00242 
+                      00243 ; ==============================================================================
+                      00244 ;                                Sous-programmes
+                      00245 ; ==============================================================================
+                      00246 
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00247 ; --------------------------------------------------------------
+                      00248 ;      Load prompt message into RAM and initialize sizeof msg
+                      00249 ; --------------------------------------------------------------
+                      00250 
+0057                  00251 LOAD_PROMPT_RAM
+0057   1383           00252     bankisel PTR_PROMPT_MSG ; selectionner banque pour l'acces indirecte
+0058   3021           00253     movlw PTR_PROMPT_MSG    ; intialiser le pointeur
+                      00254 
+0059   0084           00255     movwf FSR               ; le FSR contient le pointeur
+005A   3054           00256     movlw A'T'              ; premier byte du message prompt
+005B   0080           00257     movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
+                      00258                             ; est charge avec le premier byte du msg ('T') en ASCII
+Message[305]: Using default destination of 1 (file).
+005C   0A84           00259     incf FSR               ; prochain byte
+005D   3065           00260     movlw A'e'              ; etc...
+005E   0080           00261     movwf INDF
+Message[305]: Using default destination of 1 (file).
+005F   0A84           00262     incf FSR
+0060   3073           00263     movlw A's'
+0061   0080           00264     movwf INDF
+Message[305]: Using default destination of 1 (file).
+0062   0A84           00265     incf FSR
+0063   3074           00266     movlw A't'
+0064   0080           00267     movwf INDF
+Message[305]: Using default destination of 1 (file).
+0065   0A84           00268     incf FSR
+0066   300D           00269     movlw A'\r'
+0067   0080           00270     movwf INDF
+Message[305]: Using default destination of 1 (file).
+0068   0A84           00271     incf FSR
+0069   300A           00272     movlw A'\n'
+006A   0080           00273     movwf INDF
+                      00274 
+                      00275     ; The prompt is 6 bytes long, initialize this value
+006B   3006           00276     movlw SIZE_PROMPT_MSG
+006C   00F4           00277     movwf TX_CHAR_COUNT
+                      00278 
+006D   0008           00279     return
+                      00280 
+                      00281 ; -------------------------------------
+                      00282 ;           Lire tension ADC
+                      00283 ; -------------------------------------
+                      00284 
+006E                  00285 Lire_Tension_Polling
+006E   1283 1303      00286            banksel  ADCON0
+0070   151F           00287 start      bsf      ADCON0,GO        ; demarrage de la conversion
+0071   191F           00288 non        btfsc    ADCON0,GO        ; attendre la fin de conversion
+0072   2???           00289            goto     non
+0073   081E           00290 oui        movf     ADRESH,W         ; mettre resultat (8 bits de poids fort)
+                      00291                                      ; de la conversion au reg de travail
+0074   00F2           00292            movwf    ADC_RESULT       ; sauvegarder resultat (tension) en memoire
+                      00293 
+                      00294 ; -------------------------------------
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00295 ;      Envoyer lettre via USART
+                      00296 ; -------------------------------------
+                      00297 
+                      00298 ; ------------------------------------
+                      00299 ;           Transcodage ASCII
+                      00300 ; ------------------------------------
+                      00301 
+                      00302 
+                      00303 ; ==============================================================================
+                      00304 ;                       programme principal (boucle infinie)
+                      00305 ; ==============================================================================
+0075                  00306 main
+0075   0000           00307         nop
+0076   2???           00308         goto     main
+3F39                  00309         end                     ; fin du programme (directive d'assemblage)
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  8
 
 
 SYMBOL TABLE
@@ -236,10 +386,14 @@ ADCON0                            0000001F
 ADCON1                            0000009F
 ADCS0                             00000006
 ADCS1                             00000007
+ADC_RESULT                        00000072
+ADC_config                        00000013
 ADDEN                             00000003
 ADFM                              00000007
 ADIE                              00000006
 ADIF                              00000006
+ADIF_Callback                     0000004D
+ADIF_status                       00000009
 ADON                              00000000
 ADRESH                            0000001E
 ADRESL                            0000009E
@@ -278,16 +432,16 @@ CHS2                              00000005
 CKE                               00000006
 CKP                               00000004
 CREN                              00000004
-CSRC                              00000007
-D                                 00000005
-DATA_ADDRESS                      00000005
-DC                                00000001
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  6
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE  9
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+CSRC                              00000007
+D                                 00000005
+DATA_ADDRESS                      00000005
+DC                                00000001
 D_A                               00000005
 D_NOT_A                           00000005
 EEADR                             0000010D
@@ -319,6 +473,8 @@ INTE                              00000004
 INTEDG                            00000006
 INTF                              00000001
 IRP                               00000007
+LOAD_PROMPT_RAM                   00000057
+Lire_Tension_Polling              0000006E
 NOT_A                             00000005
 NOT_ADDRESS                       00000005
 NOT_BO                            00000000
@@ -335,18 +491,18 @@ NOT_W                             00000002
 NOT_WRITE                         00000002
 OBF                               00000006
 OERR                              00000001
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE 10
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 OPTION_REG                        00000081
 P                                 00000004
 PCFG0                             00000000
 PCFG1                             00000001
 PCFG2                             00000002
 PCFG3                             00000003
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  7
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 PCL                               00000002
 PCLATH                            0000000A
 PCON                              0000008E
@@ -362,6 +518,7 @@ PORTC                             00000007
 PORTD                             00000008
 PORTE                             00000009
 PR2                               00000092
+PRINT_PROMPT_MSG                  00000035
 PS0                               00000000
 PS1                               00000001
 PS2                               00000002
@@ -369,6 +526,7 @@ PSA                               00000003
 PSPIE                             00000007
 PSPIF                             00000007
 PSPMODE                           00000004
+PTR_PROMPT_MSG                    00000021
 R                                 00000002
 RA0                               00000000
 RA1                               00000001
@@ -392,6 +550,12 @@ RC2                               00000002
 RC3                               00000003
 RC4                               00000004
 RC5                               00000005
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE 11
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
@@ -400,12 +564,6 @@ RCD8                              00000000
 RCEN                              00000003
 RCIE                              00000005
 RCIF                              00000005
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  8
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 RCREG                             0000001A
 RCSTA                             00000018
 RD                                00000000
@@ -426,10 +584,13 @@ RP1                               00000006
 RSEN                              00000001
 RX9                               00000006
 RX9D                              00000000
+RXIF_Callback                     00000043
+RXIF_status                       00000007
 R_NOT_W                           00000002
 R_W                               00000002
 S                                 00000003
 SEN                               00000000
+SIZE_PROMPT_MSG                   00000006
 SMP                               00000007
 SPBRG                             00000099
 SPEN                              00000007
@@ -448,6 +609,12 @@ SSPM3                             00000003
 SSPOV                             00000006
 SSPSTAT                           00000094
 STATUS                            00000003
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE 12
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 STATUS_TEMP                       00000071
 SYNC                              00000004
 T0CS                              00000005
@@ -459,25 +626,22 @@ T1CKPS1                           00000005
 T1CON                             00000010
 T1INSYNC                          00000002
 T1OSCEN                           00000003
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE  9
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 T1SYNC                            00000002
 T2CKPS0                           00000000
 T2CKPS1                           00000001
 T2CON                             00000012
-TENSION_BRUTE                     00000073
+TEST_TXIF                         0000003B
+TIMER1_V_COUNT                    00000073
 TMR0                              00000001
 TMR0IE                            00000005
 TMR0IF                            00000002
 TMR1                              0000000E
 TMR1CS                            00000001
+TMR1F_status                      00000008
 TMR1H                             0000000F
 TMR1IE                            00000000
 TMR1IF                            00000000
+TMR1IF_Callback                   00000048
 TMR1L                             0000000E
 TMR1ON                            00000000
 TMR2                              00000011
@@ -504,6 +668,12 @@ TRISB4                            00000004
 TRISB5                            00000005
 TRISB6                            00000006
 TRISB7                            00000007
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE 13
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 TRISC                             00000087
 TRISC0                            00000000
 TRISC1                            00000001
@@ -518,12 +688,6 @@ TRISD0                            00000000
 TRISD1                            00000001
 TRISD2                            00000002
 TRISD3                            00000003
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE 10
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 TRISD4                            00000004
 TRISD5                            00000005
 TRISD6                            00000006
@@ -540,10 +704,14 @@ TXD8                              00000000
 TXEN                              00000005
 TXIE                              00000004
 TXIF                              00000004
-TXIF_Callback                     00000039
+TXIF_Callback                     00000052
+TXIF_status                       0000000A
 TXREG                             00000019
 TXSTA                             00000098
+TX_CHAR_COUNT                     00000074
+Timer1_config                     0000002F
 UA                                00000001
+USART_config                      0000001B
 VIRGULE_ASCII                     0000002C
 W                                 00000000
 WCOL                              00000007
@@ -559,6 +727,12 @@ _BOREN_OFF                        00003FBF
 _BOREN_ON                         00003FFF
 _CONFIG                           00002007
 _CPD_OFF                          00003FFF
+MPASM 5.86                   SYSTEME_ACQ.ASM   11-26-2020  14:43:02         PAGE 14
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 _CPD_ON                           00003EFF
 _CP_ALL                           00000FCF
 _CP_HALF                          00001FDF
@@ -577,12 +751,6 @@ _IDLOC1                           00002001
 _IDLOC2                           00002002
 _IDLOC3                           00002003
 _LP_OSC                           00003FFC
-MPASM 5.86                   SYSTEME_ACQ.ASM   11-25-2020  18:42:48         PAGE 11
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 _LVP_OFF                          00003F7F
 _LVP_ON                           00003FFF
 _PWRTE_OFF                        00003FFF
@@ -598,13 +766,13 @@ _WRT_OFF                          00003DFF
 _WRT_ON                           00003FFF
 _XT_OSC                           00003FFD
 __16F877                          00000001
-main                              0000003C
-non                               00000034
-oui                               00000036
-start                             00000033
+main                              00000075
+non                               00000071
+oui                               00000073
+start                             00000070
 
-Errors   :     2
-Warnings :     1 reported,     0 suppressed
-Messages :     9 reported,     0 suppressed
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :    14 reported,     0 suppressed
 
 

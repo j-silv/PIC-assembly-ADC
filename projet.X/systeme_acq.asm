@@ -1,37 +1,49 @@
-;==========================================================
+;______________________________________________________________________________
 ; TP Master 1 - MNE (2020-2021)
 ; Justin SILVER
-; ==========================================================
-; systeme d'acquisition pour PC
+;
+; systeme d'acquisition, tension --> PC avec un
 ; microcontroleur - PIC16F877
-; ==========================================================
-; Ce programme lit une tension brute venant de l'ADC, le
+;
+; Ce programme lit une tension binaire venant de l'ADC, le
 ; convertit en decimal et apres en ASCII.
 ; Ensuite, le resultat est envoye via USART au terminal PC
-; ==========================================================
+; ______________________________________________________________________________
 
-; ==========================================================
-;                    variables/constantes
-; ==========================================================
+; ==============================================================================
+;                           variables/constantes
+; ==============================================================================
+;#define INTERRUPTS_ON      ; si commenté, les interrupts ne sont pas enables
 
-W_TEMP         EQU 0x70     ; pour context sauvegarde (ISR)
-STATUS_TEMP    EQU 0x71     ; pour context sauvegarde (ISR)
-;PCLATH_TEMP   EQU 0x72     ; necessaire si plusieurs pages memoires programmes
-			                ; sont utilises
-ADC_RESULT     EQU 0x73     ; registre en memoire qui contient le resultat
+PTR_PROMPT_MSG   EQU 0x21   ; pointe a msg prompt pour l'utilisateur (6 bytes)
+                            ; "Test\r\n" (bank 0)
+SIZE_PROMPT_MSG  EQU 0x06   ; prompt message is 6 bytes long
+
+; *
+W_TEMP           EQU 0x70   ; pour context sauvegarde (ISR)
+STATUS_TEMP      EQU 0x71   ; pour context sauvegarde (ISR)
+ADC_RESULT       EQU 0x72   ; contient le resultat
 			                ; binaire (tension) de l'ADC
-TIMER1_V_COUNT EQU 0x74     ; registre qui contient le nombre de fois le peripherique
+TIMER1_V_COUNT   EQU 0x73   ; contient le nombre de fois le peripherique
                             ; Timer1 a fait un overflow
-X_VAL_SPBRG    EQU D'25'    ; prescaler valeur pour le baud-rate generateur
-VIRGULE_ASCII  EQU 0x2C
+TX_CHAR_COUNT    EQU 0x74   ; contient le nombre de caracteres pas encore envoye via
+                            ; USART pour un transfert donnee
+CURRENT_MODE     EQU 0x75   ; contient le mode de fonctionnement actuel du systeme
+                            ; 'A' pour automatique, 'D' pour manuel
+MODE_REQUEST     EQU 0x76   ; contient le mode de fonctionnement demande par
+                            ; l'utilisateur
+;*
 
-; ==========================================================
-;                    configuration du uC
-; ==========================================================
+X_VAL_SPBRG      EQU D'25'  ; prescaler valeur pour le baud-rate generateur
+VIRGULE_ASCII    EQU 0x2C
+
+; * - accesible de n'importe quelle page de memoire donne
+
+; ==============================================================================
+;                               configuration du uC
+; ==============================================================================
 
     list p=16f877
-
-    ; Inclure le fichier de description des d�finitions du 16f877
     include "p16f877.inc"
 
     ; PIC16F877 Configuration Bit Settings
@@ -42,72 +54,65 @@ VIRGULE_ASCII  EQU 0x2C
 
     org         0x000            ; Commencer au RESET vector
     clrf        PCLATH           ; 1ere page memoire programme selectionne
-    goto        PIC_config       ; brancher pour configurer les peripheriques, les interrupts, etc.
+    goto        ADC_config       ; brancher pour configurer les peripheriques, les interrupts, etc.
 
-; ===========================================================
-;                Interrupt service routine (ISR)
-; ===========================================================
+; ==============================================================================
+;                        Interrupt service routine (ISR)
+; ==============================================================================
 
-; -----------------------------------------------------------
-;                    Sauvegarder le contexte
-; -----------------------------------------------------------
+; ------------------------------------
+;       Sauvegarder le contexte
+; ------------------------------------
 
     org         0x004             ; interrupt vector location pour le PIC uC
     movwf       W_TEMP            ; Copy W to TEMP register
     swapf       STATUS, W         ; Swap status to be saved into W
-    ; cette instruction n'est pas necessaire car tous les X_TEMPs registres
-    ; sont communs pour toutes les pages de RAM
-    clrf        STATUS            ; selectionner bank 0, regardless of current bank
-                                  ; Clears IRP,RP1,RP0
     movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
 
-    ; ces instructions ne sont pas necessaire car seulement la 1ere page mem program
-    ; est utilise dans ce programme
-    ;movf         PCLATH, W       ; Only required if using pages 1, 2 and/or 3
-    ;movwf        PCLATH_TEMP     ; Save PCLATH into W
-    ;clrf         PCLATH          ; Page zero, regardless of current page
+; -----------------------------------
+;           Flag checking
+; -----------------------------------
 
-; -----------------------------------------------------------
-;                         Actual ISR
-; -----------------------------------------------------------
+; Did we receive a message via USART?
+RCIF_status
+    banksel       PIR1
+    btfsc         PIR1, RCIF
+    call          RCIF_Callback
 
-    ; investiguer le status des flags pour determiner la source de l'interruption
-    banksel       PIR1            ; PIR1 contient les flag bits pour les perihiques
-    btfsc         PIR1, TXIF      ; si le transmit empty flag est allume,
-    ; envoyer un nouveau char
+; Did the Timer1 module overflow?
+TMR1F_status
+    nop
+
+; Is the analog to digital conversion done?
+ADIF_status
+    nop
+
+; Is the USART TX register ready for a new character?
+TXIF_status
+    banksel       PIR1
+    btfsc         PIR1, TXIF
     call          TXIF_Callback
 
-; -----------------------------------------------------------
-;                    Sauvegarder le contexte
-; -----------------------------------------------------------
-
-    ; au cas ou le ISR programme change de banc
-    ; cette instruction n'est pas necessaire car tous les X_TEMPs registres
-    ; sont communs pour toutes les pages de RAM
-    clrf          STATUS          ; selectionner bank 0, regardless of current bank
-                                  ; Clears IRP,RP1,RP0
-
-    ; ces instructions ne sont pas necessaire car seulement la 1ere page mem program
-    ; est utilise dans ce programme
-    ;movf         PCLATH_TEMP, W  ; Restore PCLATH
-    ;movwf        PCLATH          ; Move W into PCLATH
+; -------------------------------------
+;       Restaurer le contexte
+; -------------------------------------
 
     swapf         STATUS_TEMP,W   ; Swap STATUS_TEMP register into W
                                   ; (sets bank to original state)
     movwf         STATUS          ; Move W into STATUS register
     swapf         W_TEMP,F        ; Swap W_TEMP
     swapf         W_TEMP,W        ; Swap W_TEMP into W
-    retfie                        ; return from interrupt!
+    retfie                        ; return from interrupt
 
 
-; ===========================================================
-;                 Peripheral configuration
-; ===========================================================
+; ==============================================================================
+;                           Peripheral configuration
+; ==============================================================================
 
-; -----------------------------------------------------------
-;             ADC (entry point for configuration)
-; -----------------------------------------------------------
-PIC_config
+; ----------------------------------------------
+;       ADC (entry point for configuration)
+; ----------------------------------------------
+ADC_config
 	    banksel      ADCON1
         ; Left justify ,1 analog channel
         ; VDD and VSS references
@@ -116,18 +121,13 @@ PIC_config
 
         banksel      ADCON0
         ; Fosc/8, A/D enabled
-        movlw        ( 0 << ASC1 | 1<<ADSC0 | 1<<ADON )
+        movlw        ( 0 << ADCS1 | 1<<ADCS0 | 1<<ADON )
         movwf        ADCON0
 
-        ; ADC/USART interrupt and interrupt enable bit
-        banksel      INTCON
-        movlw        ( 1<<PEIE ) ; peripherique interrupt enable
-        movwf        INTCON
-
-; -----------------------------------------------------------
-;           USART (mode asynchronous full-duplex)
-; -----------------------------------------------------------
-
+; ----------------------------------------------------
+;        USART (mode asynchronous full-duplex)
+; ----------------------------------------------------
+USART_config
     ; entrees/sorties (RC6/TX/CK and RC7/RX/DT)
     ; TXUSART EST OUTPUT (RC6 -> sortie)
     ; RXUSART EST INPUT (RC7 -> entree)
@@ -152,18 +152,21 @@ PIC_config
     movlw	    ( 0<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
     movwf	    TXSTA
 
+    ; peripherique serie est "enabled"
+    ; enables continuous receive
     banksel     RCSTA
-    movlw       ( 1<<SPEN ) ; peripherique serie est "enabled"
+    movlw       ( 1<<SPEN | 1<<CREN )
     movwf       RCSTA
 
-    ; ADC/USART interrupt and interrupt enable bit
-    banksel     INTCON
-    movlw       ( 1<<PEIE ) ; peripherique interrupt enable
-    movwf       INTCON
+    banksel     TX_CHAR_COUNT
+    movlw       0x00        ; initaliser nombre de char envoye a 0
+    movwf       TX_CHAR_COUNT
 
-; --------------------------------------------------
-;                      Timer1
-; --------------------------------------------------
+; ----------------------------------
+;              Timer1
+; ----------------------------------
+
+Timer1_config
     banksel     T1CON
     ; Prescaler = 1:8
     ; Oscillator shut off
@@ -172,85 +175,242 @@ PIC_config
     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
     movwf       T1CON
 
+    movlw       0x00        ; initaliser nombre d'overflow compte a 0
+    movwf       TIMER1_V_COUNT
 
-;___________________________TEST TP 27/11/20________________________
-; TEST --> character sending via USART
-    ; USART TX flag enable
-    ;banksel     PIE1
-    ;movlw       ( 1<<TXIE )
-    ;movwf       PIE1
+; ==============================================================================
+;                           Interrupts configuration
+; ==============================================================================
 
-; **apres que TOUT est configure, cette instruction peux etre executee**
+#ifdef INTERRUPTS_ON
+
+PERIPH_INT_ENABLE
+    banksel     INTCON
+    movlw       ( 1<<PEIE ) ; ADC/USART peripheral interrupt enable
+    movwf       INTCON
+
+GLOBAL_INT_ENABLE
     banksel     INTCON
     movlw       ( 1<<GIE ) ; global interrupt enable
     movwf       INTCON
 
-    goto        main       ; branch to endless loop
-;__________________________TEST TP 27/11/20_________________________
+#endif
 
+; ==============================================================================
+;                    Print prompt message to PC terminal (polling)
+; ==============================================================================
 
+PRINT_PROMPT_MSG
+    call        LOAD_PROMPT_RAM   ; sizeof prompt msg and prompt msg are intialized
 
-; ===========================================================
-;                       ISR callbacks
-; ===========================================================
+    banksel     PIR1              ; selectionne le bank pour PIR1 (RP1, RP0)
+    bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
 
-RXIF_Callback()
-    ; Timer1 interrupt and interrupt enable bit
-    ;banksel     PIE1
-    ;movlw       ( 1<<TMR1E ) ; peripherique interrupt enable
-    ;movwf       PIE1
-                return
+    movlw       PTR_PROMPT_MSG
+    movwf       FSR               ; point to the start of the prompt msg
 
-TMR1IF_Callback()
-    ; ADC conversion done flag enable
+TEST_TXIF
+    btfss       PIR1, TXIF        ; test if the TX_REG is empty
+    goto        TEST_TXIF         ; sinon, attendre
+
+    movf        INDF, W
+    movwf       TXREG             ; send first byte to USART TX register
+    incf        FSR               ; increment pointer index to next char in prompt msg
+    decfsz      TX_CHAR_COUNT     ; decrement # of chars that remain to be sent
+    goto        TEST_TXIF         ; skip if the entire message has been sent
+                                  ; this would mean that TX_CHAR_COUNT went from 6 to 0
+
+; ==============================================================================
+;                           Last configuration steps
+; ==============================================================================
     banksel     PIE1
-    movlw       ( 1<<ADIE )
+    movlw       ( 1<<RCIE )       ; Receive USART flag enable
     movwf       PIE1
-                return
 
-ADIF_Callback()
-    ; USART TX flag enable
+    goto        main              ; branch to endless loop
+
+; ==============================================================================
+;                                  ISR callbacks
+; ==============================================================================
+
+; ----------------------------------
+;              RCIF
+; ----------------------------------
+
+RCIF_Callback
+    banksel     RCREG
+    movf        RCREG, W
+    movwf       MODE_REQUEST         ; save what was received into a dedicated register
+                                     ; this is to avoid possibly reading 2 different
+                                     ; bytes in FIFO during the XOR tests below
+TEST_IF_A_UPPER
+    movf        MODE_REQUEST, W      ; move what was received into working reg
+    xorlw       A'A'                 ; this operation will make Z flag = 0 if
+                                     ; the character 'A' was received
+    btfsc       STATUS, Z
+    goto SET_AUTOMATIC_MODE
+
+TEST_IF_A_LOWER
+    movf        MODE_REQUEST, W      ; move what was received into working reg
+    xorlw       A'a'                 ; this operation will make Z flag = 0 if
+                                     ; the character 'a' was received
+    btfsc       STATUS, Z
+    goto SET_AUTOMATIC_MODE
+
+TEST_IF_R_UPPER
+    movf        MODE_REQUEST, W      ; move what was received into working reg
+    xorlw       A'R'                 ; this operation will make Z flag = 0 if
+                                     ; the character 'R' was received
+    btfsc       STATUS, Z
+    goto SET_MANUAL_MODE
+
+TEST_IF_R_LOWER
+    movf        MODE_REQUEST, W      ; move what was received into working reg
+    xorlw       A'r'                 ; this operation will make Z flag = 0 if
+                                     ; the character 'r' was received
+    btfsc       STATUS, Z
+    goto SET_MANUAL_MODE
+
+TEST_IF_D_UPPER
+    movf        MODE_REQUEST, W      ; move what was received into working reg
+    xorlw       A'D'                 ; this operation will make Z flag = 0 if
+                                     ; the character 'D' was received
+    btfsc       STATUS, Z
+    goto CONVERSION_REQUEST
+
+TEST_IF_D_LOWER
+    movf        MODE_REQUEST, W      ; move what was received into working reg
+    xorlw       A'd'                 ; this operation will make Z flag = 0 if
+                                     ; the character 'd' was received
+    btfsc       STATUS, Z
+    goto CONVERSION_REQUEST
+
+SET_AUTOMATIC_MODE
+    movlw       A'A'
+    movwf       CURRENT_MODE         ; set the current mode reg to automatic
+
     banksel     PIE1
-    movlw       ( 1<<TXIE )
+    movlw       ( 1<<TMR1IE )        ; Timer1 interrupt enable
     movwf       PIE1
-                return
+    goto EXIT_CALLBACK
 
-TXIF_Callback()
-                movlw    A'a'     ; move the ASCII code of "a" to w
-                movwf    TXREG    ; write to USART transfer register
-                return            ; return to ISR or whoever called this subprogram
+SET_MANUAL_MODE
+    movlw       A'R'
+    movwf       CURRENT_MODE         ; set the current mode reg to manual
+    goto EXIT_CALLBACK
+
+CONVERSION_REQUEST
+    movf        CURRENT_MODE, W
+    xorlw       A'R'                 ; this operation will make Z flag = 0 if
+                                     ; the current mode is manual! Thus the
+                                     ; user has correctly requested a conersion
+    btfsc       STATUS, Z
+    call START_ADC
+
+EXIT_CALLBACK
+    return
+
+; ----------------------------------
+;              TMMR1IF
+; ----------------------------------
+
+TMR1IF_Callback
+    call START_ADC
+    return
+
+; ----------------------------------
+;              ADIF
+; ----------------------------------
+
+ADIF_Callback
+    banksel     PIE1
+    movlw       ( 1<<TXIE ) ; USART TX flag enable
+    movwf       PIE1
+    return
+
+; ----------------------------------
+;              TXIF
+; ----------------------------------
+
+TXIF_Callback
+    banksel     TXREG
+    movlw       A'a'     ; move the ASCII code of "a" to w
+    movwf       TXREG    ; write to USART transfer register
+    return              ; return to ISR or whoever called this subprogram
 
 
+; ==============================================================================
+;                                Sous-programmes
+; ==============================================================================
 
-; ===========================================================
-;                       Sous-programmes
-; ===========================================================
+; --------------------------------------------------------------
+;      Load prompt message into RAM and initialize sizeof msg
+; --------------------------------------------------------------
 
-; -------------------------------------------
-;                 Lire tension ADC
-; -------------------------------------------
+LOAD_PROMPT_RAM
+    bankisel PTR_PROMPT_MSG ; selectionner banque pour l'acces indirecte
+    movlw PTR_PROMPT_MSG    ; intialiser le pointeur
 
-Lire_Tension_Polling()
+    movwf FSR               ; le FSR contient le pointeur
+    movlw A'T'              ; premier byte du message prompt
+    movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
+                            ; est charge avec le premier byte du msg ('T') en ASCII
+    incf FSR               ; prochain byte
+    movlw A'e'              ; etc...
+    movwf INDF
+    incf FSR
+    movlw A's'
+    movwf INDF
+    incf FSR
+    movlw A't'
+    movwf INDF
+    incf FSR
+    movlw A'\r'
+    movwf INDF
+    incf FSR
+    movlw A'\n'
+    movwf INDF
+
+    ; The prompt is 6 bytes long, initialize this value
+    movlw SIZE_PROMPT_MSG
+    movwf TX_CHAR_COUNT
+
+    return
+
+; -------------------------------------
+;      Lire tension ADC (polling)
+; -------------------------------------
+
+Lire_Tension_Polling
            banksel  ADCON0
-start      bsf      ADCON0,GO        ; demarrage de la conversion
-non        btfsc    ADCON0,GO        ; attendre la fin de conversion
+start      bsf      ADCON0,GO            ; demarrage de la conversion
+non        btfsc    ADCON0,GO_NOT_DONE   ; attendre la fin de conversion
            goto     non
-oui        movf     ADRESH,W         ; mettre resultat (8 bits de poids fort)
-                                     ; de la conversion au reg de travail
-           movwf    ADC_RESULT       ; sauvegarder resultat (tension) en memoire
+oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort)
+                                         ; de la conversion au reg de travail
+           movwf    ADC_RESULT           ; sauvegarder resultat (tension) en memoire
+           return
 
-; -------------------------------------------
-;           Envoyer lettre via USART
-; -------------------------------------------
+; -------------------------------------
+;   Start ADC conversion (interrupts)
+; -------------------------------------
 
- ; -------------------------------------------
- ;           Transcodage ASCII
- ; -------------------------------------------
+START_ADC
+           banksel     ADCON0
+           bsf         ADCON0, GO      ; demarrage de la conversion
+           banksel     PIE1
+           movlw       ( 1<<ADIE )     ; ADC conversion done interrupt flag enable
+           movwf       PIE1
+           return
+
+; ------------------------------------
+;           Transcodage ASCII
+; ------------------------------------
 
 
-; ===========================================================
-;            programme principal (boucle infinie)
-; ===========================================================
+; ==============================================================================
+;                       programme principal (boucle infinie)
+; ==============================================================================
 main
         nop
         goto     main
