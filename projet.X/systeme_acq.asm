@@ -19,7 +19,8 @@ PTR_PROMPT_MSG   EQU 0x21   ; pointe a msg prompt pour l'utilisateur (6 bytes)
                             ; "Test\r\n" (bank 0)
 SIZE_PROMPT_MSG  EQU 0x06   ; prompt message is 6 bytes long
 
-; *
+; * recommendation: utilser cblock
+
 W_TEMP           EQU 0x70   ; pour context sauvegarde (ISR)
 STATUS_TEMP      EQU 0x71   ; pour context sauvegarde (ISR)
 ADC_RESULT       EQU 0x72   ; contient le resultat
@@ -81,11 +82,11 @@ RCIF_status
 
 ; Did the Timer1 module overflow?
 TMR1F_status
-    nop
+    nop       ; NOT YET CODED
 
 ; Is the analog to digital conversion done?
 ADIF_status
-    nop
+    nop       ; NOT YET CODED
 
 ; Is the USART TX register ready for a new character?
 TXIF_status
@@ -159,8 +160,9 @@ USART_config
     movwf       RCSTA
 
     banksel     TX_CHAR_COUNT
-    movlw       0x00        ; initaliser nombre de char envoye a 0
-    movwf       TX_CHAR_COUNT
+    ;movlw       0x00            ; initaliser nombre de char envoye a 0
+    ;movwf       TX_CHAR_COUNT
+    clrf       TX_CHAR_COUNT   ; facon plus facile/rapide ->
 
 ; ----------------------------------
 ;              Timer1
@@ -175,8 +177,10 @@ Timer1_config
     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
     movwf       T1CON
 
-    movlw       0x00        ; initaliser nombre d'overflow compte a 0
-    movwf       TIMER1_V_COUNT
+    ;movlw       0x00        ; initaliser nombre d'overflow compte a 0
+    ;movwf       TIMER1_V_COUNT
+    clrf       TIMER1_V_COUNT   ; facon plus facile/rapide ->
+
 
 ; ==============================================================================
 ;                           Interrupts configuration
@@ -186,13 +190,17 @@ Timer1_config
 
 PERIPH_INT_ENABLE
     banksel     INTCON
-    movlw       ( 1<<PEIE ) ; ADC/USART peripheral interrupt enable
-    movwf       INTCON
+    ;movlw       ( 1<<PEIE )    ; ADC/USART peripheral interrupt enable
+    ;movwf       INTCON
+    bsf         INTCON, PEIE  ; faut mieux simplement faire un bsf
+
 
 GLOBAL_INT_ENABLE
     banksel     INTCON
-    movlw       ( 1<<GIE ) ; global interrupt enable
-    movwf       INTCON
+    ;movlw       ( 1<<GIE ) ; global interrupt enable
+    ;movwf       INTCON
+    bsf         INTCON, GIE  ; faut mieux simplement faire un bsf
+
 
 #endif
 
@@ -224,8 +232,10 @@ TEST_TXIF
 ;                           Last configuration steps
 ; ==============================================================================
     banksel     PIE1
-    movlw       ( 1<<RCIE )       ; Receive USART flag enable
-    movwf       PIE1
+    ;movlw       ( 1<<RCIE )       ; Receive USART flag enable
+    ;movwf       PIE1
+    bsf         PIE1, RCIE         ; sinon je vais ecraser les autres bits
+
 
     goto        main              ; branch to endless loop
 
@@ -288,15 +298,19 @@ TEST_IF_D_LOWER
 SET_AUTOMATIC_MODE
     movlw       A'A'
     movwf       CURRENT_MODE         ; set the current mode reg to automatic
-
     banksel     PIE1
-    movlw       ( 1<<TMR1IE )        ; Timer1 interrupt enable
-    movwf       PIE1
+    ;movlw       ( 1<<TMR1IE )        ; Timer1 interrupt enable
+    ;movwf       PIE1
+    bsf         PIE1, TMR1IE         ; sinon je vais ecraser les autres bits
     goto EXIT_CALLBACK
 
 SET_MANUAL_MODE
     movlw       A'R'
     movwf       CURRENT_MODE         ; set the current mode reg to manual
+    banksel     PIE1
+    ;movlw       ( 0<<TMR1IE )        ; Timer1 interrupt disable
+    ;movwf       PIE1
+    bcf         PIE1, TMR1IE         ; sinon je vais ecraser les autres bits
     goto EXIT_CALLBACK
 
 CONVERSION_REQUEST
@@ -324,8 +338,10 @@ TMR1IF_Callback
 
 ADIF_Callback
     banksel     PIE1
-    movlw       ( 1<<TXIE ) ; USART TX flag enable
-    movwf       PIE1
+    ;movlw       ( 1<<TXIE ) ; USART TX flag enable
+    ;movwf       PIE1
+    bsf         PIE1, TXIE  ; sinon je vais ecraser les autres bits
+
     return
 
 ; ----------------------------------
@@ -336,8 +352,7 @@ TXIF_Callback
     banksel     TXREG
     movlw       A'a'     ; move the ASCII code of "a" to w
     movwf       TXREG    ; write to USART transfer register
-    return              ; return to ISR or whoever called this subprogram
-
+    return
 
 ; ==============================================================================
 ;                                Sous-programmes
@@ -355,7 +370,7 @@ LOAD_PROMPT_RAM
     movlw A'T'              ; premier byte du message prompt
     movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
                             ; est charge avec le premier byte du msg ('T') en ASCII
-    incf FSR               ; prochain byte
+    incf FSR               ; prochain byte ** add the destination (incf = FSR, F)***
     movlw A'e'              ; etc...
     movwf INDF
     incf FSR
@@ -399,13 +414,17 @@ START_ADC
            banksel     ADCON0
            bsf         ADCON0, GO      ; demarrage de la conversion
            banksel     PIE1
-           movlw       ( 1<<ADIE )     ; ADC conversion done interrupt flag enable
-           movwf       PIE1
+           ;movlw       ( 1<<ADIE )     ; ADC conversion done interrupt flag enable
+           ;movwf       PIE1
+           bsf         PIE1, ADIE     ; sinon je vais ecraser les autres bits
+
            return
 
 ; ------------------------------------
 ;           Transcodage ASCII
 ; ------------------------------------
+
+; NOT YET CODED
 
 
 ; ==============================================================================
