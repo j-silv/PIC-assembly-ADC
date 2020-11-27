@@ -1,0 +1,6 @@
+Error[115]   SRC\USART.ASM 25 : Duplicate label ("SIZE_PROMPT_MSG" or redefining symbol that cannot be redefined)
+Message[302] SRC\USART.ASM 39 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 48 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 56 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 129 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 136 : Register in operand not in bank 0.  Ensure that bank bits are correct.

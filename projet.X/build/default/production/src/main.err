@@ -1,0 +1,14 @@
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("W_TEMP" or redefining symbol that cannot be redefined)
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("STATUS_TEMP" or redefining symbol that cannot be redefined)
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("ADC_RESULT" or redefining symbol that cannot be redefined)
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("TMR1_V_COUNT" or redefining symbol that cannot be redefined)
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("TX_CHAR_COUNT" or redefining symbol that cannot be redefined)
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("CURRENT_MODE" or redefining symbol that cannot be redefined)
+Error[115]   SRC\MAIN.ASM 40 : Duplicate label ("MODE_REQUEST" or redefining symbol that cannot be redefined)
+Message[305] SRC\MAIN.ASM 84 : Using default destination of 1 (file).
+Message[305] SRC\MAIN.ASM 87 : Using default destination of 1 (file).
+Message[305] SRC\MAIN.ASM 90 : Using default destination of 1 (file).
+Message[305] SRC\MAIN.ASM 93 : Using default destination of 1 (file).
+Message[305] SRC\MAIN.ASM 96 : Using default destination of 1 (file).
+Message[305] SRC\MAIN.ASM 117 : Using default destination of 1 (file).
+Message[305] SRC\MAIN.ASM 118 : Using default destination of 1 (file).

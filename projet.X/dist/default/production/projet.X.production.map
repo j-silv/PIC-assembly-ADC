@@ -1,71 +1,60 @@
 MPLINK 5.09, LINKER
-Linker Map File - Created Thu Nov 26 14:43:04 2020
+Linker Error Map File - Created Fri Nov 27 00:42:53 2020
 
-                                 Section Info
-                  Section       Type    Address   Location Size(Bytes)
-                ---------  ---------  ---------  ---------  ---------
-                   .org_0       code   0x000000    program   0x000004
-                   .cinit    romdata   0x000002    program   0x000004
-                   .org_1       code   0x000004    program   0x0000e6
-.config_2007_BUILD/DEFAULT/PRODUCTION/SYSTEME       code   0x002007    program   0x000002
+*Warning* - This is only a partial map file due to a link time error.
+   Only sections which were allocated prior to the error are shown below.
 
+CODEPAGES:
+    Memory      Start        End              Section    Address Size(Bytes)
+ ---------  ---------  ---------            ---------  ---------  ---------
+     page0     0x0000     0x07ff                                           
 
+     page1     0x0800     0x0fff                                           
 
-                              Program Memory Usage 
-                               Start         End      
-                           ---------   ---------      
-                            0x000000    0x000076      
-                            0x002007    0x002007      
-            120 out of 8454 program addresses used, program memory utilization is 1%
+     page2     0x1000     0x17ff                                           
 
+     page3     0x1800     0x1fff                                           
 
+   .idlocs     0x2000     0x2003                                           
 
-                              Symbols - Sorted by Name
-                     Name    Address   Location    Storage File                     
-                ---------  ---------  ---------  --------- ---------                
-               ADC_config   0x000013    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            ADIF_Callback   0x00004d    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-              ADIF_status   0x000009    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-          LOAD_PROMPT_RAM   0x000057    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-     Lire_Tension_Polling   0x00006e    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-         PRINT_PROMPT_MSG   0x000035    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            RXIF_Callback   0x000043    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-              RXIF_status   0x000007    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                TEST_TXIF   0x00003b    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-             TMR1F_status   0x000008    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-          TMR1IF_Callback   0x000048    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            TXIF_Callback   0x000052    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-              TXIF_status   0x00000a    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            Timer1_config   0x00002f    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-             USART_config   0x00001b    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                     main   0x000075    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                      non   0x000071    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                      oui   0x000073    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                    start   0x000070    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
+     devid     0x2006     0x2006                                           
+
+   .config     0x2007     0x2007                                           
+
+    eedata     0x2100     0x21ff                                           
 
 
+SHAREBANKS:
+    Memory      Start        End              Section    Address Size(Bytes)
+ ---------  ---------  ---------            ---------  ---------  ---------
+  gprnobnk     0x0070     0x007f                                           
 
-                              Symbols - Sorted by Address
-                     Name    Address   Location    Storage File                     
-                ---------  ---------  ---------  --------- ---------                
-              RXIF_status   0x000007    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-             TMR1F_status   0x000008    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-              ADIF_status   0x000009    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-              TXIF_status   0x00000a    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-               ADC_config   0x000013    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-             USART_config   0x00001b    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            Timer1_config   0x00002f    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-         PRINT_PROMPT_MSG   0x000035    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                TEST_TXIF   0x00003b    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            RXIF_Callback   0x000043    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-          TMR1IF_Callback   0x000048    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            ADIF_Callback   0x00004d    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-            TXIF_Callback   0x000052    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-          LOAD_PROMPT_RAM   0x000057    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-     Lire_Tension_Polling   0x00006e    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                    start   0x000070    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                      non   0x000071    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                      oui   0x000073    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
-                     main   0x000075    program     static C:\Users\idontseeit\Desktop\Justins_Files\school\Master_MNE\microcontroleur\PIC-assembly-ADC\projet.X\systeme_acq.asm
+  gprnobnk     0x00f0     0x00ff                                           
 
+  gprnobnk     0x0170     0x017f                                           
+
+  gprnobnk     0x01f0     0x01ff                                           
+
+
+DATABANKS:
+    Memory      Start        End              Section    Address Size(Bytes)
+ ---------  ---------  ---------            ---------  ---------  ---------
+      sfr0     0x0000     0x001f                                           
+
+      sfr1     0x0080     0x009f                                           
+
+      sfr2     0x0100     0x010f                                           
+
+      sfr3     0x0180     0x018f                                           
+
+      gpr0     0x0020     0x006f                                           
+
+      gpr1     0x00a0     0x00ef                                           
+
+      gpr2     0x0110     0x016f                                           
+
+      gpr3     0x0190     0x01ef                                           
+
+
+ACCESSBANKS:
 
