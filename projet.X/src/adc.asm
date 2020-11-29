@@ -18,7 +18,7 @@
 ADC_FILE       CODE
 ADC_Config
         GLOBAL       ADC_Config
-	    banksel      ADCON1
+            banksel      ADCON1
         ; Left justify ,1 analog channel
         ; VDD and VSS references
         movlw        ( 0<<ADFM | 1<<PCFG3 | 1<<PCFG2 | 1<<PCFG1 | 0<<PCFG0 )

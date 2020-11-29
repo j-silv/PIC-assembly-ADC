@@ -1,9 +1,13 @@
+
 ; ----------------------------------------------------
 ;        USART (mode asynchronous full-duplex)
 ; ----------------------------------------------------
 
       list p=16f877
       include "p16f877.inc"
+
+      constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
+      constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
 
 ; ==============================================================================
 ;                          variables/constantes
@@ -15,15 +19,10 @@
 
                  UDATA  0x21
 PTR_PROMPT_MSG   RES 1   ; pointe a msg prompt pour l'utilisateur (6 bytes)
-                            ; "Test\r\n" (bank 0)
-
-			    ; put these in a separate header file as constants
-      constant SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
-      constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
-      constant   VIRGULE_ASCII = 0x2C
+                         ; "Test\r\n" (bank 0)
 
       ; export labels to other modules
-      GLOBAL     PTR_PROMPT_MSG, SIZE_PROMPT_MSG
+      GLOBAL     PTR_PROMPT_MSG
 
 ; ==============================================================================
 ;                          peripheral configuration
@@ -53,8 +52,8 @@ USART_Config
     ; 8-bit transmission mode
     ; enable la transmission
     banksel     TXSTA
-    movlw	    ( 0<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
-    movwf	    TXSTA
+    movlw           ( 1<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
+    movwf           TXSTA
 
     ; peripherique serie est "enabled"
     ; enables continuous receive
@@ -143,6 +142,7 @@ CONVERSION_REQUEST
                                      ; the current mode is manual! Thus the
                                      ; user has correctly requested a conersion
     btfsc       STATUS, Z
+    PAGESEL     START_ADC
     call        START_ADC
 
 EXIT_CALLBACK

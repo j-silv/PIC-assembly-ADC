@@ -1,4 +1,4 @@
-;______________________________________________________________________________
+______________________________________________________________________________
 ; TP Master 1 - MNE (2020-2021)
 ; Justin SILVER
 ;
@@ -8,6 +8,9 @@
 ; Ce programme lit une tension binaire venant de l'ADC, le
 ; convertit en decimal et apres en ASCII.
 ; Ensuite, le resultat est envoye via USART au terminal PC
+;
+; NOTE: extremely important... you cant have file names like PIC-x-y- etc with
+; the colons like that... it will not compile!!!! fix that in your actual project file
 ; ______________________________________________________________________________
 
 ; ==============================================================================
@@ -15,26 +18,25 @@
 ; ==============================================================================
 
     ; import labels from other modules
-    EXTERN      PTR_PROMPT_MSG, SIZE_PROMPT_MSG, X_VAL_SPBRG
+    EXTERN      PTR_PROMPT_MSG
     ; subprograms
     EXTERN      USART_Config, ADC_Config, TMR1_Config
-    
+
     ; ces registres sont accesibles de n'importe quelle page de memoire
     ; I believe I have to go ahead and use UDATA... I should do that
-    CBLOCK      0x70
-W_TEMP          ; pour context sauvegarde (ISR)
-STATUS_TEMP     ; pour context sauvegarde (ISR)
-ADC_RESULT      ; contient le resultat
-			    ; binaire (tension) de l'ADC
-TMR1_V_COUNT  ; contient le nombre de fois le peripherique
-                ; Timer1 a fait un overflow
-TX_CHAR_COUNT   ; contient le nombre de caracteres pas encore envoye via
-                ; USART pour un transfert donnee
-CURRENT_MODE    ; contient le mode de fonctionnement actuel du systeme
-                ; 'A' pour automatique, 'D' pour manuel
-MODE_REQUEST    ; contient le mode de fonctionnement demande par
-                ; l'utilisateur
-    ENDC
+SHARED_REGS     UDATA_SHR   ;0x70
+W_TEMP          RES 1   ; pour context sauvegarde (ISR)
+STATUS_TEMP     RES 1   ; pour context sauvegarde (ISR)
+ADC_RESULT      RES 1   ; contient le resultat
+                        ; binaire (tension) de l'ADC
+TMR1_V_COUNT    RES 1   ; contient le nombre de fois le peripherique
+                        ; Timer1 a fait un overflow
+TX_CHAR_COUNT   RES 1   ; contient le nombre de caracteres pas encore envoye via
+                        ; USART pour un transfert donnee
+CURRENT_MODE    RES 1   ; contient le mode de fonctionnement actuel du systeme
+                        ; 'A' pour automatique, 'D' pour manuel
+MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
+                        ; l'utilisateur
 
     ; export labels to other modules
     GLOBAL      W_TEMP, STATUS_TEMP, ADC_RESULT, TMR1_V_COUNT, TX_CHAR_COUNT, CURRENT_MODE, MODE_REQUEST
@@ -46,22 +48,34 @@ MODE_REQUEST    ; contient le mode de fonctionnement demande par
     list p=16f877
     include "p16f877.inc"
 
-    ; PIC16F877 Configuration Bit Settings
-    ; Assembly source line config statements
-    ; CONFIG
-    ; __config 0xFF39
-    __CONFIG _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _LVP_OFF & _CPD_OFF & _WRT_ON
+    constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
+    constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
 
-;#define INTERRUPTS_ON      ; si commenté, les interrupts ne sont pas enables
-MAIN_FILE    CODE        0x000            ; Commencer au RESET vector
-    clrf        PCLATH           ; 1ere page memoire programme selectionne
+    ; PIC16F877 Configuration Bit Settings
+    ; turn on ICD with _DEBUG_OFF, because this
+    ; clears the DEBUG bit in the config word (see doc)
+    __CONFIG _DEBUG_OFF & _LVP_OFF & _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _CPD_OFF & _WRT_ON
+
+
+START_PROGRAM   CODE      0x000
+                nop              ; reserved for the  In-Circuit Debugger
+                PAGESEL   MAIN_Config
+                goto      MAIN_Config
+
+;#define INTERRUPTS_ON           ; si commenté, les interrupts ne sont pas enables
+    ;clrf        PCLATH          ; 1ere page memoire programme selectionne
 
 ; ==============================================================================
 ;                         configuration des periphiques
 ; ==============================================================================
 
+MAIN_FILE       CODE
+MAIN_Config
+    PAGESEL     USART_Config
     call        USART_Config
+    PAGESEL     ADC_Config
     call        ADC_Config
+    PAGESEL     TMR1_Config
     call        TMR1_Config
 
 
@@ -81,18 +95,23 @@ LOAD_PROMPT_RAM
     movlw A'T'              ; premier byte du message prompt
     movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
                             ; est charge avec le premier byte du msg ('T') en ASCII
+
     incf FSR               ; prochain byte ** add the destination (incf = FSR, F)***
     movlw A'e'              ; etc...
     movwf INDF
+
     incf FSR
     movlw A's'
     movwf INDF
+
     incf FSR
     movlw A't'
     movwf INDF
+
     incf FSR
     movlw A'\r'
     movwf INDF
+
     incf FSR
     movlw A'\n'
     movwf INDF
@@ -141,4 +160,5 @@ USART_RCIF_ENABLE
 main
         nop
         goto     main
+
         end                ; fin du programme (directive d'assemblage)

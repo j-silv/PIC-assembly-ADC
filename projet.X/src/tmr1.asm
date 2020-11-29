@@ -5,6 +5,7 @@
     list p=16f877
     include "p16f877.inc"
 
+
 ; ==============================================================================
 ;                          variables/constantes
 ; ==============================================================================
@@ -39,7 +40,9 @@ TMR1_Config
 
 TMR1IF_Callback
     GLOBAL      TMR1IF_Callback
+    PAGESEL     START_ADC
     call        START_ADC
+
     return
 
 

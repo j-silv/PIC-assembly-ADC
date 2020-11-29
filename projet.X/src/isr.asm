@@ -22,10 +22,10 @@
 ;       Sauvegarder le contexte
 ; ------------------------------------
 
-    CODE        0x004             ; interrupt vector location pour le PIC uC
-    movwf       W_TEMP            ; Copy W to TEMP register
-    swapf       STATUS, W         ; Swap status to be saved into W
-    movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
+ISR_FILE    CODE        0x004             ; interrupt vector location pour le PIC uC
+            movwf       W_TEMP            ; Copy W to TEMP register
+            swapf       STATUS, W         ; Swap status to be saved into W
+            movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
 
 ; -----------------------------------
 ;           Flag checking
@@ -35,6 +35,7 @@
 RCIF_status
     banksel       PIR1
     btfsc         PIR1, RCIF
+    PAGESEL       RCIF_Callback
     call          RCIF_Callback
 
 ; Did the Timer1 module overflow?
@@ -49,6 +50,7 @@ ADIF_status
 TXIF_status
     banksel       PIR1
     btfsc         PIR1, TXIF
+    PAGESEL       TXIF_Callback
     call          TXIF_Callback
 
 ; -------------------------------------
