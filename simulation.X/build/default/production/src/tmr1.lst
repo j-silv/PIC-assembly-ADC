@@ -1,16 +1,15 @@
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  1
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00001 
-                      00002 ; ----------------------------------------------------
-                      00003 ;        USART (mode asynchronous full-duplex)
-                      00004 ; ----------------------------------------------------
-                      00005 
-                      00006       list p=16f877
-                      00007       include "p16f877.inc"
+                      00001 ; ----------------------------------
+                      00002 ;              Timer1
+                      00003 ; ----------------------------------
+                      00004 
+                      00005     list p=16f877
+                      00006     include "p16f877.inc"
                       00001         LIST
                       00002 
                       00003 ;==========================================================================
@@ -20,190 +19,62 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00007 ;  (c) Copyright 1999-2019 Microchip Technology, All rights reserved
                       00008 ;==========================================================================
                       00009 
+Message[301]: MESSAGE: (Processor-header file mismatch.  Verify selected processor.)
                       00541         LIST
+                      00007 
                       00008 
-  0006                00009       constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
-  0019                00010       constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
-                      00011 
-                      00012 ; ==============================================================================
-                      00013 ;                          variables/constantes
-                      00014 ; ==============================================================================
-                      00015       ; registers
-  0000                00016       EXTERN     TX_CHAR_COUNT, CURRENT_MODE, MODE_REQUEST
-                      00017       ; subprograms
-  0000                00018       EXTERN      START_ADC
-                      00019 
-                      00020                  UDATA  0x21
-0021                  00021 PTR_PROMPT_MSG   RES 1   ; pointe a msg prompt pour l'utilisateur (6 bytes)
-                      00022                          ; "Test\r\n" (bank 0)
-                      00023 
-                      00024       ; export labels to other modules
-  0000                00025       GLOBAL     PTR_PROMPT_MSG
-                      00026 
-                      00027 ; ==============================================================================
-                      00028 ;                          peripheral configuration
-                      00029 ; ==============================================================================
-                      00030 
-                      00031 USART_FILE    CODE
-0000                  00032 USART_Config
-  0000                00033     GLOBAL      USART_Config    ; export sub-program label to other modules
-                      00034     ; entrees/sorties (RC6/TX/CK and RC7/RX/DT)
-                      00035     ; TXUSART EST OUTPUT (RC6 -> sortie)
-                      00036     ; RXUSART EST INPUT (RC7 -> entree)
-0000   1683 1303      00037     banksel     TRISC
-0002   3080           00038     movlw       ( 0<<TRISC6 | 1<<TRISC7 )
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0003   0087           00039     movwf       TRISC
+                      00009 ; ==============================================================================
+                      00010 ;                          variables/constantes
+                      00011 ; ==============================================================================
+                      00012     ; registers
+  0000                00013     EXTERN      TMR1_V_COUNT
+                      00014     ; subprograms
+  0000                00015     EXTERN      START_ADC
+                      00016 
+                      00017 ; ==============================================================================
+                      00018 ;                          peripheral configuration
+                      00019 ; ==============================================================================
+                      00020 TMR1_FILE  CODE
+0000                  00021 TMR1_Config
+  0000                00022     GLOBAL      TMR1_Config
+0000   1283 1303      00023     banksel     T1CON
+                      00024     ; Prescaler = 1:8
+                      00025     ; Oscillator shut off
+                      00026     ; Internal clock (Fosc/4) used
+                      00027     ; Timer enabled
+0002   3031           00028     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
+0003   0090           00029     movwf       T1CON
+0004   01??           00030     clrf        TMR1_V_COUNT   ; initaliser nombre d'overflow compte a 0
+                      00031 
+                      00032 
+                      00033 ; ==============================================================================
+                      00034 ;                           Interrupt callbacks
+                      00035 ; ==============================================================================
+                      00036 
+                      00037 ; ----------------------------------
+                      00038 ;              TMMR1IF
+                      00039 ; ----------------------------------
                       00040 
-                      00041     ; USART baud-rate
-                      00042     ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  2
+0005                  00041 TMR1IF_Callback
+  0000                00042     GLOBAL      TMR1IF_Callback
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00043     ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
-                      00044     ; valeur du registre SPBRG et est de 0...255
-                      00045     ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
-0004   1683 1303      00046     banksel     SPBRG
-0006   3019           00047     movlw       X_VAL_SPBRG
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0007   0099           00048     movwf       SPBRG
-                      00049 
-                      00050     ; mode asynchrone
-                      00051     ; high speed pour reduire l'erreur
-                      00052     ; 8-bit transmission mode
-                      00053     ; enable la transmission
-0008   1683 1303      00054     banksel     TXSTA
-000A   3024           00055     movlw           ( 1<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-000B   0098           00056     movwf           TXSTA
-                      00057 
-                      00058     ; peripherique serie est "enabled"
-                      00059     ; enables continuous receive
-000C   1283 1303      00060     banksel     RCSTA
-000E   3090           00061     movlw       ( 1<<SPEN | 1<<CREN )
-000F   0098           00062     movwf       RCSTA
-                      00063 
-0010   ???? ????      00064     banksel     TX_CHAR_COUNT
-0012   01??           00065     clrf        TX_CHAR_COUNT    ; initaliser nombre de char a envoyer a 0
-0013   0008           00066     return
-                      00067 
-                      00068 ; ==============================================================================
-                      00069 ;                           Interrupt callbacks
-                      00070 ; ==============================================================================
-                      00071 
-                      00072 ; ----------------------------------
-                      00073 ;              RCIF
-                      00074 ; ----------------------------------
-                      00075 
-0014                  00076 RCIF_Callback
-  0000                00077     GLOBAL      RCIF_Callback
-0014   1283 1303      00078     banksel     RCREG
-0016   081A           00079     movf        RCREG, W
-0017   00??           00080     movwf       MODE_REQUEST         ; save what was received into a dedicated register
-                      00081                                      ; this is to avoid possibly reading 2 different
-                      00082                                      ; bytes in FIFO during the XOR tests below
-0018                  00083 TEST_IF_A_UPPER
-0018   08??           00084     movf        MODE_REQUEST, W      ; move what was received into working reg
-0019   3A41           00085     xorlw       A'A'                 ; this operation will make Z flag = 0 if
-                      00086                                      ; the character 'A' was received
-001A   1903           00087     btfsc       STATUS, Z
-001B   2???           00088     goto SET_AUTOMATIC_MODE
-                      00089 
-001C                  00090 TEST_IF_A_LOWER
-001C   08??           00091     movf        MODE_REQUEST, W      ; move what was received into working reg
-001D   3A61           00092     xorlw       A'a'                 ; this operation will make Z flag = 0 if
-                      00093                                      ; the character 'a' was received
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  3
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-001E   1903           00094     btfsc       STATUS, Z
-001F   2???           00095     goto SET_AUTOMATIC_MODE
-                      00096 
-0020                  00097 TEST_IF_R_UPPER
-0020   08??           00098     movf        MODE_REQUEST, W      ; move what was received into working reg
-0021   3A52           00099     xorlw       A'R'                 ; this operation will make Z flag = 0 if
-                      00100                                      ; the character 'R' was received
-0022   1903           00101     btfsc       STATUS, Z
-0023   2???           00102     goto SET_MANUAL_MODE
-                      00103 
-0024                  00104 TEST_IF_R_LOWER
-0024   08??           00105     movf        MODE_REQUEST, W      ; move what was received into working reg
-0025   3A72           00106     xorlw       A'r'                 ; this operation will make Z flag = 0 if
-                      00107                                      ; the character 'r' was received
-0026   1903           00108     btfsc       STATUS, Z
-0027   2???           00109     goto SET_MANUAL_MODE
-                      00110 
-0028                  00111 TEST_IF_D_UPPER
-0028   08??           00112     movf        MODE_REQUEST, W      ; move what was received into working reg
-0029   3A44           00113     xorlw       A'D'                 ; this operation will make Z flag = 0 if
-                      00114                                      ; the character 'D' was received
-002A   1903           00115     btfsc       STATUS, Z
-002B   2???           00116     goto CONVERSION_REQUEST
-                      00117 
-002C                  00118 TEST_IF_D_LOWER
-002C   08??           00119     movf        MODE_REQUEST, W      ; move what was received into working reg
-002D   3A64           00120     xorlw       A'd'                 ; this operation will make Z flag = 0 if
-                      00121                                      ; the character 'd' was received
-002E   1903           00122     btfsc       STATUS, Z
-002F   2???           00123     goto CONVERSION_REQUEST
-                      00124 
-0030                  00125 SET_AUTOMATIC_MODE
-0030   3041           00126     movlw       A'A'
-0031   00??           00127     movwf       CURRENT_MODE         ; set the current mode reg to automatic
-0032   1683 1303      00128     banksel     PIE1
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0034   140C           00129     bsf         PIE1, TMR1IE         ; Timer1 interrupt enable
-0035   2???           00130     goto EXIT_CALLBACK
-                      00131 
-0036                  00132 SET_MANUAL_MODE
-0036   3052           00133     movlw       A'R'
-0037   00??           00134     movwf       CURRENT_MODE         ; set the current mode reg to manual
-0038   1683 1303      00135     banksel     PIE1
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-003A   100C           00136     bcf         PIE1, TMR1IE         ; Timer1 interrupt disable
-003B   2???           00137     goto EXIT_CALLBACK
-                      00138 
-003C                  00139 CONVERSION_REQUEST
-003C   08??           00140     movf        CURRENT_MODE, W
-003D   3A52           00141     xorlw       A'R'                 ; this operation will make Z flag = 0 if
-                      00142                                      ; the current mode is manual! Thus the
-                      00143                                      ; user has correctly requested a conersion
-003E   1903           00144     btfsc       STATUS, Z
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  4
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-003F   ???? ????      00145     PAGESEL     START_ADC
-0041   2???           00146     call        START_ADC
-                      00147 
-0042                  00148 EXIT_CALLBACK
-0042   0008           00149     return
-                      00150 
-                      00151 ; ----------------------------------
-                      00152 ;              TXIF
-                      00153 ; ----------------------------------
-                      00154 
-0043                  00155 TXIF_Callback
-  0000                00156     GLOBAL      TXIF_Callback
-0043   1283 1303      00157     banksel     TXREG
-0045   3061           00158     movlw       A'a'     ; move the ASCII code of "a" to w
-0046   0099           00159     movwf       TXREG    ; write to USART transfer register
-0047   0008           00160     return
-                      00161 
-                      00162 ; ----------------------------------
-                      00163 ;          end module code
-                      00164 ; ----------------------------------
-                      00165 
-                      00166     end
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  5
+0005   ???? ????      00043     PAGESEL     START_ADC
+0007   2???           00044     call        START_ADC
+                      00045 
+0008   0008           00046     return
+                      00047 
+                      00048 
+                      00049 ; ----------------------------------
+                      00050 ;          end module code
+                      00051 ; ----------------------------------
+                      00052 
+                      00053     end
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  3
 
 
 SYMBOL TABLE
@@ -257,19 +128,17 @@ CHS1                              00000004
 CHS2                              00000005
 CKE                               00000006
 CKP                               00000004
-CONVERSION_REQUEST                0000003C
 CREN                              00000004
 CSRC                              00000007
-CURRENT_MODE                      00000000
 D                                 00000005
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  6
+DATA_ADDRESS                      00000005
+DC                                00000001
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  4
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
-DATA_ADDRESS                      00000005
-DC                                00000001
 D_A                               00000005
 D_NOT_A                           00000005
 EEADR                             0000010D
@@ -281,7 +150,6 @@ EEDATH                            0000010E
 EEIE                              00000004
 EEIF                              00000004
 EEPGD                             00000007
-EXIT_CALLBACK                     00000042
 F                                 00000001
 FERR                              00000002
 FSR                               00000004
@@ -302,7 +170,6 @@ INTE                              00000004
 INTEDG                            00000006
 INTF                              00000001
 IRP                               00000007
-MODE_REQUEST                      00000000
 NOT_A                             00000005
 NOT_ADDRESS                       00000005
 NOT_BO                            00000000
@@ -321,16 +188,16 @@ OBF                               00000006
 OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  7
+PCFG0                             00000000
+PCFG1                             00000001
+PCFG2                             00000002
+PCFG3                             00000003
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  5
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
-PCFG0                             00000000
-PCFG1                             00000001
-PCFG2                             00000002
-PCFG3                             00000003
 PCL                               00000002
 PCLATH                            0000000A
 PCON                              0000008E
@@ -353,7 +220,6 @@ PSA                               00000003
 PSPIE                             00000007
 PSPIF                             00000007
 PSPMODE                           00000004
-PTR_PROMPT_MSG                    00000021
 R                                 00000002
 RA0                               00000000
 RA1                               00000001
@@ -380,18 +246,17 @@ RC5                               00000005
 RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  8
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 RC9                               00000006
 RCD8                              00000000
 RCEN                              00000003
 RCIE                              00000005
 RCIF                              00000005
-RCIF_Callback                     00000014
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  6
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 RCREG                             0000001A
 RCSTA                             00000018
 RD                                00000000
@@ -416,9 +281,6 @@ R_NOT_W                           00000002
 R_W                               00000002
 S                                 00000003
 SEN                               00000000
-SET_AUTOMATIC_MODE                00000030
-SET_MANUAL_MODE                   00000036
-SIZE_PROMPT_MSG                   00000006
 SMP                               00000007
 SPBRG                             00000099
 SPEN                              00000007
@@ -439,12 +301,6 @@ SSPSTAT                           00000094
 START_ADC                         00000000
 STATUS                            00000003
 SYNC                              00000004
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  9
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 T0CS                              00000005
 T0IE                              00000005
 T0IF                              00000002
@@ -454,16 +310,16 @@ T1CKPS1                           00000005
 T1CON                             00000010
 T1INSYNC                          00000002
 T1OSCEN                           00000003
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  7
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 T1SYNC                            00000002
 T2CKPS0                           00000000
 T2CKPS1                           00000001
 T2CON                             00000012
-TEST_IF_A_LOWER                   0000001C
-TEST_IF_A_UPPER                   00000018
-TEST_IF_D_LOWER                   0000002C
-TEST_IF_D_UPPER                   00000028
-TEST_IF_R_LOWER                   00000024
-TEST_IF_R_UPPER                   00000020
 TMR0                              00000001
 TMR0IE                            00000005
 TMR0IF                            00000002
@@ -472,8 +328,11 @@ TMR1CS                            00000001
 TMR1H                             0000000F
 TMR1IE                            00000000
 TMR1IF                            00000000
+TMR1IF_Callback                   00000005
 TMR1L                             0000000E
 TMR1ON                            00000000
+TMR1_Config                       00000000
+TMR1_V_COUNT                      00000000
 TMR2                              00000011
 TMR2IE                            00000001
 TMR2IF                            00000001
@@ -498,12 +357,6 @@ TRISB4                            00000004
 TRISB5                            00000005
 TRISB6                            00000006
 TRISB7                            00000007
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE 10
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 TRISC                             00000087
 TRISC0                            00000000
 TRISC1                            00000001
@@ -516,6 +369,12 @@ TRISC7                            00000007
 TRISD                             00000088
 TRISD0                            00000000
 TRISD1                            00000001
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  8
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 TRISD2                            00000002
 TRISD3                            00000003
 TRISD4                            00000004
@@ -534,18 +393,14 @@ TXD8                              00000000
 TXEN                              00000005
 TXIE                              00000004
 TXIF                              00000004
-TXIF_Callback                     00000043
 TXREG                             00000019
 TXSTA                             00000098
-TX_CHAR_COUNT                     00000000
 UA                                00000001
-USART_Config                      00000000
 W                                 00000000
 WCOL                              00000007
 WR                                00000001
 WREN                              00000002
 WRERR                             00000003
-X_VAL_SPBRG                       00000019
 Z                                 00000002
 _BODEN_OFF                        00003FBF
 _BODEN_ON                         00003FFF
@@ -557,12 +412,6 @@ _CPD_ON                           00003EFF
 _CP_ALL                           00000FCF
 _CP_HALF                          00001FDF
 _CP_OFF                           00003FFF
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE 11
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 _CP_UPPER_256                     00002FEF
 _DEBUG_OFF                        00003FFF
 _DEBUG_ON                         000037FF
@@ -579,6 +428,12 @@ _IDLOC3                           00002003
 _LP_OSC                           00003FFC
 _LVP_OFF                          00003F7F
 _LVP_ON                           00003FFF
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:22:04         PAGE  9
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 _PWRTE_OFF                        00003FFF
 _PWRTE_ON                         00003FF7
 _RC_OSC                           00003FFF
@@ -591,10 +446,10 @@ _WRT_ENABLE_ON                    00003FFF
 _WRT_OFF                          00003DFF
 _WRT_ON                           00003FFF
 _XT_OSC                           00003FFD
-__16F877                          00000001
+__16F877A                         00000001
 
 Errors   :     0
 Warnings :     0 reported,     0 suppressed
-Messages :     5 reported,     0 suppressed
+Messages :     1 reported,     0 suppressed
 
 

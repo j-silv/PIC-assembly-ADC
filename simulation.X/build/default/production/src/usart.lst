@@ -1,4 +1,4 @@
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  1
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -20,6 +20,7 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00007 ;  (c) Copyright 1999-2019 Microchip Technology, All rights reserved
                       00008 ;==========================================================================
                       00009 
+Message[301]: MESSAGE: (Processor-header file mismatch.  Verify selected processor.)
                       00541         LIST
                       00008 
   0006                00009       constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
@@ -56,13 +57,13 @@ Message[302]: Register in operand not in bank 0.  Ensure that bank bits are corr
 0003   0087           00039     movwf       TRISC
                       00040 
                       00041     ; USART baud-rate
-                      00042     ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  2
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
+                      00042     ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
                       00043     ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
                       00044     ; valeur du registre SPBRG et est de 0...255
                       00045     ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
@@ -115,13 +116,13 @@ Message[302]: Register in operand not in bank 0.  Ensure that bank bits are corr
 001C                  00090 TEST_IF_A_LOWER
 001C   08??           00091     movf        MODE_REQUEST, W      ; move what was received into working reg
 001D   3A61           00092     xorlw       A'a'                 ; this operation will make Z flag = 0 if
-                      00093                                      ; the character 'a' was received
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  3
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  3
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
+                      00093                                      ; the character 'a' was received
 001E   1903           00094     btfsc       STATUS, Z
 001F   2???           00095     goto SET_AUTOMATIC_MODE
                       00096 
@@ -174,13 +175,13 @@ Message[302]: Register in operand not in bank 0.  Ensure that bank bits are corr
 003D   3A52           00141     xorlw       A'R'                 ; this operation will make Z flag = 0 if
                       00142                                      ; the current mode is manual! Thus the
                       00143                                      ; user has correctly requested a conersion
-003E   1903           00144     btfsc       STATUS, Z
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  4
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  4
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
+003E   1903           00144     btfsc       STATUS, Z
 003F   ???? ????      00145     PAGESEL     START_ADC
 0041   2???           00146     call        START_ADC
                       00147 
@@ -203,7 +204,7 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00164 ; ----------------------------------
                       00165 
                       00166     end
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  5
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  5
 
 
 SYMBOL TABLE
@@ -262,7 +263,7 @@ CREN                              00000004
 CSRC                              00000007
 CURRENT_MODE                      00000000
 D                                 00000005
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  6
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  6
 
 
 SYMBOL TABLE
@@ -321,7 +322,7 @@ OBF                               00000006
 OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  7
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  7
 
 
 SYMBOL TABLE
@@ -380,7 +381,7 @@ RC5                               00000005
 RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  8
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  8
 
 
 SYMBOL TABLE
@@ -439,7 +440,7 @@ SSPSTAT                           00000094
 START_ADC                         00000000
 STATUS                            00000003
 SYNC                              00000004
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE  9
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE  9
 
 
 SYMBOL TABLE
@@ -498,7 +499,7 @@ TRISB4                            00000004
 TRISB5                            00000005
 TRISB6                            00000006
 TRISB7                            00000007
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE 10
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE 10
 
 
 SYMBOL TABLE
@@ -557,7 +558,7 @@ _CPD_ON                           00003EFF
 _CP_ALL                           00000FCF
 _CP_HALF                          00001FDF
 _CP_OFF                           00003FFF
-MPASM 5.86                         USART.ASM   11-29-2020  22:11:35         PAGE 11
+MPASM 5.86                         USART.ASM   11-29-2020  22:22:04         PAGE 11
 
 
 SYMBOL TABLE
@@ -591,10 +592,10 @@ _WRT_ENABLE_ON                    00003FFF
 _WRT_OFF                          00003DFF
 _WRT_ON                           00003FFF
 _XT_OSC                           00003FFD
-__16F877                          00000001
+__16F877A                         00000001
 
 Errors   :     0
 Warnings :     0 reported,     0 suppressed
-Messages :     5 reported,     0 suppressed
+Messages :     6 reported,     0 suppressed
 
 

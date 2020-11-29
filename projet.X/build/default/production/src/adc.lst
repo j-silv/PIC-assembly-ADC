@@ -1,4 +1,4 @@
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  1
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -57,7 +57,7 @@ Message[302]: Register in operand not in bank 0.  Ensure that bank bits are corr
                       00040 
 0009                  00041 ADIF_Callback
   0000                00042     GLOBAL      ADIF_Callback
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  2
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -112,7 +112,7 @@ Message[302]: Register in operand not in bank 0.  Ensure that bank bits are corr
                       00087 ; ----------------------------------
                       00088 
                       00089     end
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  3
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  3
 
 
 SYMBOL TABLE
@@ -171,7 +171,7 @@ CKE                               00000006
 CKP                               00000004
 CREN                              00000004
 CSRC                              00000007
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  4
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  4
 
 
 SYMBOL TABLE
@@ -230,7 +230,7 @@ OBF                               00000006
 OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  5
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  5
 
 
 SYMBOL TABLE
@@ -289,7 +289,7 @@ RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
 RC9                               00000006
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  6
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  6
 
 
 SYMBOL TABLE
@@ -348,7 +348,7 @@ T0IE                              00000005
 T0IF                              00000002
 T0SE                              00000004
 T1CKPS0                           00000004
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  7
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  7
 
 
 SYMBOL TABLE
@@ -407,7 +407,7 @@ TRISC6                            00000006
 TRISC7                            00000007
 TRISD                             00000088
 TRISD0                            00000000
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  8
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  8
 
 
 SYMBOL TABLE
@@ -466,7 +466,7 @@ _IDLOC2                           00002002
 _IDLOC3                           00002003
 _LP_OSC                           00003FFC
 _LVP_OFF                          00003F7F
-MPASM 5.86                           ADC.ASM   11-27-2020  0:43:19         PAGE  9
+MPASM 5.86                           ADC.ASM   11-29-2020  22:11:35         PAGE  9
 
 
 SYMBOL TABLE

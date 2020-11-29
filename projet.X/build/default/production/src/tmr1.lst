@@ -1,4 +1,4 @@
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  1
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -21,56 +21,59 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00009 
                       00541         LIST
                       00007 
-                      00008 ; ==============================================================================
-                      00009 ;                          variables/constantes
-                      00010 ; ==============================================================================
-                      00011     ; registers
-  0000                00012     EXTERN      TMR1_V_COUNT
-                      00013     ; subprograms
-  0000                00014     EXTERN      START_ADC
-                      00015 
-                      00016 ; ==============================================================================
-                      00017 ;                          peripheral configuration
-                      00018 ; ==============================================================================
-                      00019 TMR1_FILE  CODE
-0000                  00020 TMR1_Config
-  0000                00021     GLOBAL      TMR1_Config
-0000   1283 1303      00022     banksel     T1CON
-                      00023     ; Prescaler = 1:8
-                      00024     ; Oscillator shut off
-                      00025     ; Internal clock (Fosc/4) used
-                      00026     ; Timer enabled
-0002   3031           00027     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
-0003   0090           00028     movwf       T1CON
-0004   01??           00029     clrf        TMR1_V_COUNT   ; initaliser nombre d'overflow compte a 0
-                      00030 
+                      00008 
+                      00009 ; ==============================================================================
+                      00010 ;                          variables/constantes
+                      00011 ; ==============================================================================
+                      00012     ; registers
+  0000                00013     EXTERN      TMR1_V_COUNT
+                      00014     ; subprograms
+  0000                00015     EXTERN      START_ADC
+                      00016 
+                      00017 ; ==============================================================================
+                      00018 ;                          peripheral configuration
+                      00019 ; ==============================================================================
+                      00020 TMR1_FILE  CODE
+0000                  00021 TMR1_Config
+  0000                00022     GLOBAL      TMR1_Config
+0000   1283 1303      00023     banksel     T1CON
+                      00024     ; Prescaler = 1:8
+                      00025     ; Oscillator shut off
+                      00026     ; Internal clock (Fosc/4) used
+                      00027     ; Timer enabled
+0002   3031           00028     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
+0003   0090           00029     movwf       T1CON
+0004   01??           00030     clrf        TMR1_V_COUNT   ; initaliser nombre d'overflow compte a 0
                       00031 
-                      00032 ; ==============================================================================
-                      00033 ;                           Interrupt callbacks
-                      00034 ; ==============================================================================
-                      00035 
-                      00036 ; ----------------------------------
-                      00037 ;              TMMR1IF
-                      00038 ; ----------------------------------
-                      00039 
-0005                  00040 TMR1IF_Callback
-  0000                00041     GLOBAL      TMR1IF_Callback
-0005   2???           00042     call        START_ADC
-0006   0008           00043     return
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  2
+                      00032 
+                      00033 ; ==============================================================================
+                      00034 ;                           Interrupt callbacks
+                      00035 ; ==============================================================================
+                      00036 
+                      00037 ; ----------------------------------
+                      00038 ;              TMMR1IF
+                      00039 ; ----------------------------------
+                      00040 
+0005                  00041 TMR1IF_Callback
+  0000                00042     GLOBAL      TMR1IF_Callback
+0005   ???? ????      00043     PAGESEL     START_ADC
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00044 
+0007   2???           00044     call        START_ADC
                       00045 
-                      00046 ; ----------------------------------
-                      00047 ;          end module code
-                      00048 ; ----------------------------------
-                      00049 
-                      00050     end
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  3
+0008   0008           00046     return
+                      00047 
+                      00048 
+                      00049 ; ----------------------------------
+                      00050 ;          end module code
+                      00051 ; ----------------------------------
+                      00052 
+                      00053     end
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  3
 
 
 SYMBOL TABLE
@@ -129,7 +132,7 @@ CSRC                              00000007
 D                                 00000005
 DATA_ADDRESS                      00000005
 DC                                00000001
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  4
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  4
 
 
 SYMBOL TABLE
@@ -188,7 +191,7 @@ PCFG0                             00000000
 PCFG1                             00000001
 PCFG2                             00000002
 PCFG3                             00000003
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  5
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  5
 
 
 SYMBOL TABLE
@@ -247,7 +250,7 @@ RCD8                              00000000
 RCEN                              00000003
 RCIE                              00000005
 RCIF                              00000005
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  6
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  6
 
 
 SYMBOL TABLE
@@ -306,7 +309,7 @@ T1CKPS1                           00000005
 T1CON                             00000010
 T1INSYNC                          00000002
 T1OSCEN                           00000003
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  7
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  7
 
 
 SYMBOL TABLE
@@ -365,7 +368,7 @@ TRISC7                            00000007
 TRISD                             00000088
 TRISD0                            00000000
 TRISD1                            00000001
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  8
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  8
 
 
 SYMBOL TABLE
@@ -424,7 +427,7 @@ _IDLOC3                           00002003
 _LP_OSC                           00003FFC
 _LVP_OFF                          00003F7F
 _LVP_ON                           00003FFF
-MPASM 5.86                          TMR1.ASM   11-27-2020  0:41:36         PAGE  9
+MPASM 5.86                          TMR1.ASM   11-29-2020  22:11:35         PAGE  9
 
 
 SYMBOL TABLE
