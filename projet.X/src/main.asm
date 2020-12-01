@@ -8,9 +8,6 @@
 ; Ce programme lit une tension binaire venant de l'ADC, le
 ; convertit en decimal et apres en ASCII.
 ; Ensuite, le resultat est envoye via USART au terminal PC
-;
-; NOTE: extremely important... you cant have file names like PIC-x-y- etc with
-; the colons like that... it will not compile!!!! fix that in your actual project file
 ; ______________________________________________________________________________
 
 ; ==============================================================================
@@ -18,9 +15,9 @@
 ; ==============================================================================
 
     ; import labels from other modules
-    EXTERN      PTR_PROMPT_MSG
+    EXTERN      PTR_PROMPT_MSG, PTR_RESULT_MSG
     ; subprograms
-    EXTERN      USART_Config, ADC_Config, TMR1_Config
+    EXTERN      USART_Config, ADC_Config, TMR1_Config, LOAD_RESULT_RAM, LOAD_PROMPT_RAM, PRINT_PROMPT_MSG
 
     ; ces registres sont accesibles de n'importe quelle page de memoire
     ; I believe I have to go ahead and use UDATA... I should do that
@@ -75,83 +72,22 @@ MAIN_Config
     PAGESEL     TMR1_Config
     call        TMR1_Config
 
+
 ; ==============================================================================
-;                    Print prompt message to PC terminal (polling)
+;               Load/initialize prompt and result msg and print prompt
 ; ==============================================================================
 
-; ------------------------------------------
-;      Load prompt message into RAM
-; ------------------------------------------
+    ; the ADC result msg is initialized to "[X,X, ,V,\r,\n,\0]"
+    PAGESEL     LOAD_RESULT_RAM
+    call        LOAD_RESULT_RAM
 
-LOAD_PROMPT_RAM
-    bankisel PTR_PROMPT_MSG ; selectionner banque pour l'acces indirecte
-    movlw PTR_PROMPT_MSG    ; intialiser le pointeur
+    ; the prompt terminal msg is initialized to "[T,e,s,t,\r,\n,\0]"
+    PAGESEL     LOAD_PROMPT_RAM
+    call        LOAD_PROMPT_RAM
 
-    movwf FSR               ; le FSR contient le pointeur
-    movlw A'T'              ; premier byte du message prompt
-    movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
-                            ; est charge avec le premier byte du msg ('T') en ASCII
-    incf FSR,F              ; prochain byte
-    movlw A'e'              ; etc...
-    movwf INDF
-
-    incf FSR,F
-    movlw A's'
-    movwf INDF
-
-    incf FSR,F
-    movlw A't'
-    movwf INDF
-
-    incf FSR,F              ; return carriage character
-    movlw A'\r'
-    movwf INDF
-
-    incf FSR,F              ; new line character
-    movlw A'\n'
-    movwf INDF
-
-    incf FSR,F              ; END OF STRING NULL CHARACTER
-    movlw A'\0'
-    movwf INDF
-
-; ----------------------------------------------
-;      Print prompt via USART to PC terminal
-; ----------------------------------------------
-
-PRINT_PROMPT_MSG
-    ; necessaire a faire un banksel/bankisel pour les deux, car ces 2 registres sont accede
-    ; par 2 manieres different - addressage directe et addressage indirecte
-    banksel     PIR1              ; selectionne le bank pour PIR1 this (RP1, RP0)
-    bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
-
-    movlw       PTR_PROMPT_MSG
-    movwf       FSR               ; point to the start of the prompt msg
-
-TEST_END_OF_MSG
-    movf        INDF, W           ; move current byte pointed by FSR to work reg
-    xorlw       A'\0'             ; this operation will make Z flag = 1 if
-                                  ; null character ('\0') of the msg is reached
-    btfsc       STATUS, Z         ; if the end of the msg is reached, end USART comm
-    goto MSG_SENT
-
-TEST_TXIF
-    btfss       PIR1, TXIF        ; test if the TX_REG is empty
-    goto        TEST_TXIF         ; sinon, attendre
-
-    movf        INDF, W           ; place msg byte pointed to by FSR into work reg
-    movwf       TXREG             ; send msg byte to USART TX register
-    incf        FSR               ; increment pointer index to next byte in prompt msg
-    goto        TEST_END_OF_MSG
-
-; it is not necessary to preload the FSR and preset the IRP, a nop instruction could
-; be placed here instead, or a rearranged labeling
-MSG_SENT
-                bankisel PTR_RESULT   ; preselect the correct bank for indirect addressing
-                                      ; the start of this msg
-                movlw PTR_RESULT      ; preload the FSR with the address to the
-                movwf FSR             ; ADC result (this will be the next msg to send)
-
+    ; the prompt terminal message is sent with polling method to PC terminal
+    PAGESEL     PRINT_PROMPT_MSG
+    call        PRINT_PROMPT_MSG
 
 ; ==============================================================================
 ;                           Interrupts configuration

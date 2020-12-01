@@ -1,4 +1,3 @@
-
 ; ----------------------------------------------------
 ;        USART (mode asynchronous full-duplex)
 ; ----------------------------------------------------
@@ -18,10 +17,10 @@
 
                  UDATA  0x21
 PTR_PROMPT_MSG   RES 1   ; pointe a msg prompt pour l'utilisateur "Test\r\n"
-PTR_RESULT       RES 1   ; pointe a ADC result qu'on va envoyer via mode auto/manual
+PTR_RESULT_MSG   RES 1   ; pointe a ADC result qu'on va envoyer via mode auto/manual
 
       ; export labels to other modules
-      GLOBAL     PTR_PROMPT_MSG, PTR_RESULT
+      GLOBAL     PTR_PROMPT_MSG, PTR_RESULT_MSG
 
 ; ==============================================================================
 ;                          peripheral configuration
@@ -63,6 +62,138 @@ USART_Config
     banksel     TX_CHAR_COUNT
     clrf        TX_CHAR_COUNT    ; initaliser nombre de char a envoyer a 0
     return
+
+
+
+; ==============================================================================
+;                      Load/initialize result msg
+; ==============================================================================
+
+LOAD_RESULT_RAM
+    GLOBAL   LOAD_RESULT_RAM
+    bankisel PTR_RESULT_MSG                 ; selectionner banque pour l'acces indirecte
+
+    movlw (PTR_RESULT_MSG + UNITY_OFFSET)
+    movwf FSR
+    movlw A'X'
+    movwf INDF
+
+    movlw (PTR_RESULT_MSG + COMMA_OFFSET)
+    movwf FSR
+    movlw A','
+    movwf INDF
+
+    movlw (PTR_RESULT_MSG + DECIMAL_OFFSET)
+    movwf FSR
+    movlw A'X'
+    movwf INDF
+
+    movlw (PTR_RESULT_MSG + SPACE_OFFSET)
+    movwf FSR
+    movlw A' '
+    movwf INDF
+
+    movlw (PTR_RESULT_MSG + VOLT_OFFSET)
+    movwf FSR
+    movlw A'V'
+    movwf INDF
+
+    incf FSR,F              ; return carriage character
+    movlw A'\r'
+    movwf INDF
+
+    incf FSR,F              ; new line character
+    movlw A'\n'
+    movwf INDF
+
+    incf FSR,F              ; END OF STRING NULL CHARACTER
+    movlw A'\0'
+    movwf INDF
+
+    return
+
+; ==============================================================================
+;                    Print prompt message to PC terminal (polling)
+; ==============================================================================
+
+; ------------------------------------------
+;      Load prompt message into RAM
+; ------------------------------------------
+
+LOAD_PROMPT_RAM
+    GLOBAL   LOAD_PROMPT_RAM
+    bankisel PTR_PROMPT_MSG ; selectionner banque pour l'acces indirecte
+    movlw PTR_PROMPT_MSG    ; intialiser le pointeur
+
+    movwf FSR               ; le FSR contient le pointeur
+    movlw A'T'              ; premier byte du message prompt
+    movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
+                            ; est charge avec le premier byte du msg ('T') en ASCII
+    incf FSR,F              ; prochain byte
+    movlw A'e'              ; etc...
+    movwf INDF
+
+    incf FSR,F
+    movlw A's'
+    movwf INDF
+
+    incf FSR,F
+    movlw A't'
+    movwf INDF
+
+    incf FSR,F              ; return carriage character
+    movlw A'\r'
+    movwf INDF
+
+    incf FSR,F              ; new line character
+    movlw A'\n'
+    movwf INDF
+
+    incf FSR,F              ; END OF STRING NULL CHARACTER
+    movlw A'\0'
+    movwf INDF
+
+    return
+
+; ----------------------------------------------
+;      Print prompt via USART to PC terminal
+; ----------------------------------------------
+
+PRINT_PROMPT_MSG
+    GLOBAL PRINT_PROMPT_MSG
+    ; necessaire a faire un banksel/bankisel pour les deux, car ces 2 registres sont accede
+    ; par 2 manieres different - addressage directe et addressage indirecte
+    banksel     PIR1              ; selectionne le bank pour PIR1 this (RP1, RP0)
+    bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
+
+    movlw       PTR_PROMPT_MSG
+    movwf       FSR               ; point to the start of the prompt msg
+
+TEST_END_OF_MSG
+    movf        INDF, W           ; move current byte pointed by FSR to work reg
+    xorlw       A'\0'             ; this operation will make Z flag = 1 if
+                                  ; null character ('\0') of the msg is reached
+    btfsc       STATUS, Z         ; if the end of the msg is reached, end USART comm
+    goto MSG_SENT
+
+TEST_TXIF
+    btfss       PIR1, TXIF        ; test if the TX_REG is empty
+    goto        TEST_TXIF         ; sinon, attendre
+
+    movf        INDF, W           ; place msg byte pointed to by FSR into work reg
+    movwf       TXREG             ; send msg byte to USART TX register
+    incf        FSR               ; increment pointer index to next byte in prompt msg
+    goto        TEST_END_OF_MSG
+
+; it is not necessary to preload the FSR and preset the IRP, a nop instruction could
+; be placed here instead, or a rearranged labeling
+MSG_SENT
+                bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
+                                          ; the start of this msg
+                movlw PTR_RESULT_MSG      ; preload the FSR with the address to the
+                movwf FSR                 ; ADC result (this will be the next msg to send)
+
+                return
 
 ; ==============================================================================
 ;                           Interrupt callbacks
@@ -126,6 +257,12 @@ SET_AUTOMATIC_MODE
     movwf       CURRENT_MODE         ; set the current mode reg to automatic
     banksel     PIE1
     bsf         PIE1, TMR1IE         ; Timer1 interrupt enable
+
+    ; reset overflow count register (0 ms have passed)
+    ; necessary in case RCIF raised while TMR1_V_COUNT is at 1
+    ; if that happens, TMR1_V_COUNT would never be reset
+    banksel     TMR1_V_COUNT
+    clrf        TMR1_V_COUNT
     goto EXIT_CALLBACK
 
 SET_MANUAL_MODE
@@ -153,7 +290,7 @@ EXIT_CALLBACK
 
 TXIF_Callback
     GLOBAL      TXIF_Callback
-    bankisel    PTR_RESULT        ; this shouldn't really be necessary since
+    bankisel    PTR_RESULT_MSG    ; this shouldn't really be necessary since
                                   ; indirect addressing isn't used unexpectedly
 TEST_END_OF_MSG
     movf        INDF, W           ; move current byte pointed by FSR to work reg
@@ -172,6 +309,7 @@ SEND_NEW_BYTE
 MSG_SENT
     banksel     PIE1
     bcf         PIE1, TXIE  ; USART TX interrupt flag disable
+    bsf         PIE1, RCIE  ; USART RC interrupt flag enable
 
 EXIT_CALLBACK
     return

@@ -10,7 +10,7 @@
 ; ==============================================================================
 
         ; registers
-        EXTERN       ADC_RESULT, PTR_RESULT
+        EXTERN       ADC_RESULT, PTR_RESULT_MSG
 
 ; ==============================================================================
 ;                          peripheral configuration
@@ -48,8 +48,8 @@ ADIF_Callback
     PAGESEL dec2ASCII
     call dec2ASCII        ; NOT YET CODED
 
-    bankisel PTR_RESULT   ; preselect the correct bank for indirect addressing
-                          ; of the result message string
+    bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
+                              ; of the result message string
 
 
     ; result[U_offset] = Unity   (register)
@@ -60,11 +60,16 @@ ADIF_Callback
 
     ; this is performed at the end, so that once the TXIF is raised, the FSR
     ; and IRP bits (bankisel) are good to go
-    movlw PTR_RESULT      ; preload the FSR with the address to the
-    movwf FSR             ; ADC result (this will be the next msg to send)
+    movlw PTR_RESULT_MSG      ; preload the FSR with the address to the
+    movwf FSR                 ; ADC result (this will be the next msg to send)
 
+    ; a movlw then mowf  using bit-wise operations
+    ; cannot be done here, because the state of the TMR1IE is
+    ; not directly known (automatic/manual). this is why bsf/bsf
+    ; operations are performed instead
     banksel     PIE1
-    bsf         PIE1, TXIE  ; USART TX interrupt flag enable
+    bcf         PIE1, RCIE   ; Receive USART flag disable
+    bsf         PIE1, TXIE   ; USART TX interrupt flag enable
     return
 
 ; ==============================================================================

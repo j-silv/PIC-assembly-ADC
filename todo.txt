@@ -1,0 +1,30 @@
+ *************NOTE: 12/1/20 TODO DURING LAB:****************************
+
+ -replace string message initializations with .idata section (using db directive
+ for successive byte placements)
+	IDATA
+PTR_RESULT_MSG	DB	"U,D V\r\n"
+
+
+ -constants indicating location for UNITY_OFFSET, DECIMAL_OFFSET (indexes
+ for result msg string)
+	CBLOCK
+UNITY_OFFSET	0x00	; this would correspond to the index that the letter 'U' occupies
+DECIMAL_OFFSET	0x02	; this would correspond to the index that the letter 'D' occupies
+
+Thus when saving result to the U location after binary to decimal to ASCII conversion, the PTR_RESULT_MSG
+could be loaded into FSR but with an offest of UNITY_OFFSET, and then the UNITY result could be written
+to the location pointed by the FSR
+
+ -place appropiate global/local variables in appropiate modules. for example,
+ W_TEMP and STATUS_TEMP are only accessed in isr.asm module, so it makes more sense
+ to place them there. TMR1_V_COUNT is only accessed between USART and TMR1 module,
+ etc.
+
+-in IDATA section, the PTR_RESULT_MSG/PTR_PROMPT MSG label should reserve appropiate number of bytes
+needed to display message. -->
+	IDATA
+PTR_PROMPT_MSG DB "This is a test\r\n"
+Using "" adds a null terminated character to the string
+
+
