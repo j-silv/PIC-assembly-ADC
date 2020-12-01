@@ -24,22 +24,20 @@
 
     ; ces registres sont accesibles de n'importe quelle page de memoire
     ; I believe I have to go ahead and use UDATA... I should do that
-SHARED_REGS     UDATA_SHR   ;0x70
+SHARED_REGS     UDATA_SHR
 W_TEMP          RES 1   ; pour context sauvegarde (ISR)
 STATUS_TEMP     RES 1   ; pour context sauvegarde (ISR)
 ADC_RESULT      RES 1   ; contient le resultat
                         ; binaire (tension) de l'ADC
 TMR1_V_COUNT    RES 1   ; contient le nombre de fois le peripherique
                         ; Timer1 a fait un overflow
-TX_CHAR_COUNT   RES 1   ; contient le nombre de caracteres pas encore envoye via
-                        ; USART pour un transfert donnee
 CURRENT_MODE    RES 1   ; contient le mode de fonctionnement actuel du systeme
                         ; 'A' pour automatique, 'D' pour manuel
 MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
                         ; l'utilisateur
 
     ; export labels to other modules
-    GLOBAL      W_TEMP, STATUS_TEMP, ADC_RESULT, TMR1_V_COUNT, TX_CHAR_COUNT, CURRENT_MODE, MODE_REQUEST
+    GLOBAL      W_TEMP, STATUS_TEMP, ADC_RESULT, TMR1_V_COUNT, CURRENT_MODE, MODE_REQUEST
 
 ; ==============================================================================
 ;                               configuration du uC
@@ -47,9 +45,6 @@ MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
 
     list p=16f877
     include "p16f877.inc"
-
-    constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
-    constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
 
     ; PIC16F877 Configuration Bit Settings
     ; turn on ICD with _DEBUG_OFF, because this
@@ -63,7 +58,9 @@ START_PROGRAM   CODE      0x000
                 goto      MAIN_Config
 
 ;#define INTERRUPTS_ON           ; si commenté, les interrupts ne sont pas enables
-    ;clrf        PCLATH          ; 1ere page memoire programme selectionne
+                                 ; si c'est le cas, seulement le message de prompt
+                                 ; est affiché au terminal et le programme reste
+                                 ; dans la boucle while() sans en sortir
 
 ; ==============================================================================
 ;                         configuration des periphiques
@@ -78,14 +75,13 @@ MAIN_Config
     PAGESEL     TMR1_Config
     call        TMR1_Config
 
-
 ; ==============================================================================
 ;                    Print prompt message to PC terminal (polling)
 ; ==============================================================================
 
-; --------------------------------------------------------------
-;      Load prompt message into RAM and initialize sizeof msg
-; --------------------------------------------------------------
+; ------------------------------------------
+;      Load prompt message into RAM
+; ------------------------------------------
 
 LOAD_PROMPT_RAM
     bankisel PTR_PROMPT_MSG ; selectionner banque pour l'acces indirecte
@@ -95,48 +91,67 @@ LOAD_PROMPT_RAM
     movlw A'T'              ; premier byte du message prompt
     movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
                             ; est charge avec le premier byte du msg ('T') en ASCII
-
-    incf FSR               ; prochain byte ** add the destination (incf = FSR, F)***
+    incf FSR,F              ; prochain byte
     movlw A'e'              ; etc...
     movwf INDF
 
-    incf FSR
+    incf FSR,F
     movlw A's'
     movwf INDF
 
-    incf FSR
+    incf FSR,F
     movlw A't'
     movwf INDF
 
-    incf FSR
+    incf FSR,F              ; return carriage character
     movlw A'\r'
     movwf INDF
 
-    incf FSR
+    incf FSR,F              ; new line character
     movlw A'\n'
     movwf INDF
 
-    ; The prompt is 6 bytes long, initialize this value
-    movlw SIZE_PROMPT_MSG
-    movwf TX_CHAR_COUNT
+    incf FSR,F              ; END OF STRING NULL CHARACTER
+    movlw A'\0'
+    movwf INDF
+
+; ----------------------------------------------
+;      Print prompt via USART to PC terminal
+; ----------------------------------------------
 
 PRINT_PROMPT_MSG
-    banksel     PIR1              ; selectionne le bank pour PIR1 (RP1, RP0)
+    ; necessaire a faire un banksel/bankisel pour les deux, car ces 2 registres sont accede
+    ; par 2 manieres different - addressage directe et addressage indirecte
+    banksel     PIR1              ; selectionne le bank pour PIR1 this (RP1, RP0)
     bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
 
     movlw       PTR_PROMPT_MSG
     movwf       FSR               ; point to the start of the prompt msg
 
+TEST_END_OF_MSG
+    movf        INDF, W           ; move current byte pointed by FSR to work reg
+    xorlw       A'\0'             ; this operation will make Z flag = 1 if
+                                  ; null character ('\0') of the msg is reached
+    btfsc       STATUS, Z         ; if the end of the msg is reached, end USART comm
+    goto MSG_SENT
+
 TEST_TXIF
     btfss       PIR1, TXIF        ; test if the TX_REG is empty
     goto        TEST_TXIF         ; sinon, attendre
 
-    movf        INDF, W
-    movwf       TXREG             ; send first byte to USART TX register
-    incf        FSR               ; increment pointer index to next char in prompt msg
-    decfsz      TX_CHAR_COUNT     ; decrement # of chars that remain to be sent
-    goto        TEST_TXIF         ; skip if the entire message has been sent
-                                  ; this would mean that TX_CHAR_COUNT went from 6 to 0
+    movf        INDF, W           ; place msg byte pointed to by FSR into work reg
+    movwf       TXREG             ; send msg byte to USART TX register
+    incf        FSR               ; increment pointer index to next byte in prompt msg
+    goto        TEST_END_OF_MSG
+
+; it is not necessary to preload the FSR and preset the IRP, a nop instruction could
+; be placed here instead, or a rearranged labeling
+MSG_SENT
+                bankisel PTR_RESULT   ; preselect the correct bank for indirect addressing
+                                      ; the start of this msg
+                movlw PTR_RESULT      ; preload the FSR with the address to the
+                movwf FSR             ; ADC result (this will be the next msg to send)
+
 
 ; ==============================================================================
 ;                           Interrupts configuration
@@ -157,8 +172,12 @@ USART_RCIF_ENABLE
 ; ==============================================================================
 ;                       programme principal (boucle infinie)
 ; ==============================================================================
+
 main
         nop
         goto     main
 
-        end                ; fin du programme (directive d'assemblage)
+; ----------------------------------
+;          end module code
+; ----------------------------------
+        end

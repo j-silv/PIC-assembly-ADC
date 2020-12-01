@@ -14,6 +14,11 @@
     ; subprograms
     EXTERN      START_ADC
 
+    ; the TMR1 module is configured to overflow approximately every 500 ms
+    ; the TMR1_V_COUNT register keeps track of how many overflows have occured
+    ; if the TMR1_V_COUNT reaches 1, then 500 ms has already passed
+    const TMR1_OVERFLOWED = D'1'
+
 ; ==============================================================================
 ;                          peripheral configuration
 ; ==============================================================================
@@ -40,11 +45,27 @@ TMR1_Config
 
 TMR1IF_Callback
     GLOBAL      TMR1IF_Callback
+    banksel     TMR1_V_COUNT
+
+TEST_IF_SECOND_PASSED
+    movf        TMR1_V_COUNT, W    ; move what was received into working reg
+    xorlw       TMR1_OVERFLOWED    ; this operation will make Z flag = 1 if
+                                   ; the TMR1 module has already overflowed
+                                   ; this would mean that approximately 1 second has passed
+    btfsc       STATUS, Z
+    goto SECOND_PASSED             ; this instruction is skipped if only 500 ms
+                                   ; have occured
+INCR_TMR1_V_COUNT
+    incf        TMR1_V_COUNT, F    ; 500 ms have passed
+    goto EXIT_CALLBACK
+
+SECOND_PASSED
+    clrf        TMR1_V_COUNT       ; reset overflow count register (0 ms have passed)
     PAGESEL     START_ADC
     call        START_ADC
 
+EXIT_CALLBACK             
     return
-
 
 ; ----------------------------------
 ;          end module code
