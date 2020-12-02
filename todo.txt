@@ -28,3 +28,20 @@ PTR_PROMPT_MSG DB "This is a test\r\n"
 Using "" adds a null terminated character to the string
 
 
+If using IDATA, the values in memory are reserved BUT the intialization values are not put 
+into these registers. The initialization values are in program memory!
+The application code must then copy the initialization values from program memory to data memory at runtime.
+
+
+The contents of the PCLATH register are
+unchanged after a RETURN or RETFIE
+instruction is executed. The user must
+rewrite the contents of the PCLATH register for any subsequent subroutine calls or
+GOTO instructions.
+
+There are the 14 bit core psuedoinstructions, which are effectively built-in predefined macros 
+(see MPASM/MPLINK user guide appendix A.6) LCALL and LGOTO, which simplify this by 
+generating the instructions for the PAGESEL for the destination and the CALL or GOTO.   e.g on a midrange PIC16
+
+
+fix why its not  going to the appropiate goto calll

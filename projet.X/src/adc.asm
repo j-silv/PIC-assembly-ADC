@@ -43,10 +43,10 @@ ADIF_Callback
 
     ; not sure if it's necessary to PAGESEL for subprograms within the same module
     PAGESEL ADC_bin2dec
-    call ADC_bin2dec      ; NOT YET CODED
+    lcall ADC_bin2dec      ; NOT YET CODED
 
     PAGESEL dec2ASCII
-    call dec2ASCII        ; NOT YET CODED
+    lcall dec2ASCII        ; NOT YET CODED
 
     bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
                               ; of the result message string
@@ -85,7 +85,7 @@ Lire_Tension_Polling
            banksel  ADCON0
 start      bsf      ADCON0,GO            ; demarrage de la conversion
 non        btfsc    ADCON0,GO_NOT_DONE   ; attendre la fin de conversion
-           goto     non
+           lgoto     non
 oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort)
                                          ; de la conversion au reg de travail
            movwf    ADC_RESULT           ; sauvegarder resultat (tension) en memoire

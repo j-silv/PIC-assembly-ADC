@@ -57,17 +57,17 @@ OBJECTDIR=build/${CND_CONF}/${IMAGE_TYPE}
 DISTDIR=dist/${CND_CONF}/${IMAGE_TYPE}
 
 # Source Files Quoted if spaced
-SOURCEFILES_QUOTED_IF_SPACED=src/adc.asm src/isr.asm src/main.asm src/tmr1.asm src/usart.asm
+SOURCEFILES_QUOTED_IF_SPACED=src/adc.asm src/isr.asm src/main.asm src/tmr1.asm src/usart.asm src/IDASM16.ASM
 
 # Object Files Quoted if spaced
-OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/src/adc.o ${OBJECTDIR}/src/isr.o ${OBJECTDIR}/src/main.o ${OBJECTDIR}/src/tmr1.o ${OBJECTDIR}/src/usart.o
-POSSIBLE_DEPFILES=${OBJECTDIR}/src/adc.o.d ${OBJECTDIR}/src/isr.o.d ${OBJECTDIR}/src/main.o.d ${OBJECTDIR}/src/tmr1.o.d ${OBJECTDIR}/src/usart.o.d
+OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/src/adc.o ${OBJECTDIR}/src/isr.o ${OBJECTDIR}/src/main.o ${OBJECTDIR}/src/tmr1.o ${OBJECTDIR}/src/usart.o ${OBJECTDIR}/src/IDASM16.o
+POSSIBLE_DEPFILES=${OBJECTDIR}/src/adc.o.d ${OBJECTDIR}/src/isr.o.d ${OBJECTDIR}/src/main.o.d ${OBJECTDIR}/src/tmr1.o.d ${OBJECTDIR}/src/usart.o.d ${OBJECTDIR}/src/IDASM16.o.d
 
 # Object Files
-OBJECTFILES=${OBJECTDIR}/src/adc.o ${OBJECTDIR}/src/isr.o ${OBJECTDIR}/src/main.o ${OBJECTDIR}/src/tmr1.o ${OBJECTDIR}/src/usart.o
+OBJECTFILES=${OBJECTDIR}/src/adc.o ${OBJECTDIR}/src/isr.o ${OBJECTDIR}/src/main.o ${OBJECTDIR}/src/tmr1.o ${OBJECTDIR}/src/usart.o ${OBJECTDIR}/src/IDASM16.o
 
 # Source Files
-SOURCEFILES=src/adc.asm src/isr.asm src/main.asm src/tmr1.asm src/usart.asm
+SOURCEFILES=src/adc.asm src/isr.asm src/main.asm src/tmr1.asm src/usart.asm src/IDASM16.ASM
 
 
 
@@ -135,6 +135,14 @@ ${OBJECTDIR}/src/usart.o: src/usart.asm  nbproject/Makefile-${CND_CONF}.mk
 	@${DEP_GEN} -d "${OBJECTDIR}/src/usart.o"
 	@${FIXDEPS} "${OBJECTDIR}/src/usart.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
 	
+${OBJECTDIR}/src/IDASM16.o: src/IDASM16.ASM  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/src" 
+	@${RM} ${OBJECTDIR}/src/IDASM16.o.d 
+	@${RM} ${OBJECTDIR}/src/IDASM16.o 
+	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/src/IDASM16.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -d__DEBUG -d__MPLAB_DEBUGGER_ICD3=1 -q -p$(MP_PROCESSOR_OPTION)  -l\"${OBJECTDIR}/src/IDASM16.lst\" -e\"${OBJECTDIR}/src/IDASM16.err\" $(ASM_OPTIONS)    -o\"${OBJECTDIR}/src/IDASM16.o\" \"src/IDASM16.ASM\" 
+	@${DEP_GEN} -d "${OBJECTDIR}/src/IDASM16.o"
+	@${FIXDEPS} "${OBJECTDIR}/src/IDASM16.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
+	
 else
 ${OBJECTDIR}/src/adc.o: src/adc.asm  nbproject/Makefile-${CND_CONF}.mk
 	@${MKDIR} "${OBJECTDIR}/src" 
@@ -175,6 +183,14 @@ ${OBJECTDIR}/src/usart.o: src/usart.asm  nbproject/Makefile-${CND_CONF}.mk
 	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/src/usart.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -q -p$(MP_PROCESSOR_OPTION)  -l\"${OBJECTDIR}/src/usart.lst\" -e\"${OBJECTDIR}/src/usart.err\" $(ASM_OPTIONS)    -o\"${OBJECTDIR}/src/usart.o\" \"src/usart.asm\" 
 	@${DEP_GEN} -d "${OBJECTDIR}/src/usart.o"
 	@${FIXDEPS} "${OBJECTDIR}/src/usart.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
+	
+${OBJECTDIR}/src/IDASM16.o: src/IDASM16.ASM  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/src" 
+	@${RM} ${OBJECTDIR}/src/IDASM16.o.d 
+	@${RM} ${OBJECTDIR}/src/IDASM16.o 
+	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/src/IDASM16.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -q -p$(MP_PROCESSOR_OPTION)  -l\"${OBJECTDIR}/src/IDASM16.lst\" -e\"${OBJECTDIR}/src/IDASM16.err\" $(ASM_OPTIONS)    -o\"${OBJECTDIR}/src/IDASM16.o\" \"src/IDASM16.ASM\" 
+	@${DEP_GEN} -d "${OBJECTDIR}/src/IDASM16.o"
+	@${FIXDEPS} "${OBJECTDIR}/src/IDASM16.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
 	
 endif
 

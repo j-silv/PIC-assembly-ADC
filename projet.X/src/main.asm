@@ -17,7 +17,7 @@
     ; import labels from other modules
     EXTERN      PTR_PROMPT_MSG, PTR_RESULT_MSG
     ; subprograms
-    EXTERN      USART_Config, ADC_Config, TMR1_Config, LOAD_RESULT_RAM, LOAD_PROMPT_RAM, PRINT_PROMPT_MSG
+    EXTERN      copy_init_data, USART_Config, ADC_Config, TMR1_Config, PRINT_PROMPT_MSG
 
     ; ces registres sont accesibles de n'importe quelle page de memoire
     ; I believe I have to go ahead and use UDATA... I should do that
@@ -51,10 +51,9 @@ MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
 
 START_PROGRAM   CODE      0x000
                 nop              ; reserved for the  In-Circuit Debugger
-                PAGESEL   MAIN_Config
-                goto      MAIN_Config
+                lgoto      MAIN_Config
 
-;#define INTERRUPTS_ON           ; si commenté, les interrupts ne sont pas enables
+#define INTERRUPTS_ON            ; si commenté, les interrupts ne sont pas enables
                                  ; si c'est le cas, seulement le message de prompt
                                  ; est affiché au terminal et le programme reste
                                  ; dans la boucle while() sans en sortir
@@ -64,45 +63,56 @@ START_PROGRAM   CODE      0x000
 ; ==============================================================================
 
 MAIN_FILE       CODE
+
+; ENABLE_MCLR     
+    ; banksel     PCON
+    ; ; this is to enable master clear button on PICDEM
+    ; movlw	    (1 << NOT_BOR | 1 << NOT_POR )
+    ; movwf       PCON
+    
+
 MAIN_Config
+    PAGESEL     copy_init_data
+    lcall        copy_init_data
+    ; the ADC result msg is initialized to "[X,X, ,V,\r,\n,\0]"
+    ; the prompt terminal msg is initialized to "[T,E,S,T,\r,\n,\0]"
     PAGESEL     USART_Config
-    call        USART_Config
+    lcall        USART_Config
     PAGESEL     ADC_Config
-    call        ADC_Config
+    lcall        ADC_Config
     PAGESEL     TMR1_Config
-    call        TMR1_Config
+    lcall        TMR1_Config
 
 
 ; ==============================================================================
 ;               Load/initialize prompt and result msg and print prompt
 ; ==============================================================================
 
-    ; the ADC result msg is initialized to "[X,X, ,V,\r,\n,\0]"
-    PAGESEL     LOAD_RESULT_RAM
-    call        LOAD_RESULT_RAM
-
-    ; the prompt terminal msg is initialized to "[T,e,s,t,\r,\n,\0]"
-    PAGESEL     LOAD_PROMPT_RAM
-    call        LOAD_PROMPT_RAM
-
     ; the prompt terminal message is sent with polling method to PC terminal
     PAGESEL     PRINT_PROMPT_MSG
-    call        PRINT_PROMPT_MSG
+    lcall        PRINT_PROMPT_MSG
 
 ; ==============================================================================
 ;                           Interrupts configuration
 ; ==============================================================================
 
+; clear all interrupt flags on startup
+CLR_PERIPH_FLAGS
+  banksel     PIR1
+  bcf         PIR1, TMR1IF 
+  bcf         PIR1, ADIF
+
+
 #ifdef INTERRUPTS_ON
 PERIPH_INT_ENABLE
   banksel     INTCON
   bsf         INTCON, PEIE  ; ADC/USART peripheral interrupt enable
-GLOBAL_INT_ENABLE
-  banksel     INTCON
-  bsf         INTCON, GIE  ; global interrupt enable
 USART_RCIF_ENABLE
   banksel     PIE1
   bsf         PIE1, RCIE   ; Receive USART flag enable
+GLOBAL_INT_ENABLE
+  banksel     INTCON
+  bsf         INTCON, GIE  ; global interrupt enable
 #endif
 
 ; ==============================================================================
@@ -111,7 +121,7 @@ USART_RCIF_ENABLE
 
 main
         nop
-        goto     main
+        lgoto     main
 
 ; ----------------------------------
 ;          end module code

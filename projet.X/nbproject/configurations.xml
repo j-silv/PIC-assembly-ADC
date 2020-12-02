@@ -17,6 +17,7 @@
       <itemPath>src/main.asm</itemPath>
       <itemPath>src/tmr1.asm</itemPath>
       <itemPath>src/usart.asm</itemPath>
+      <itemPath>src/IDASM16.ASM</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
