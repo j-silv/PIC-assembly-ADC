@@ -1,4 +1,4 @@
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  1
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -14,197 +14,150 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00008 ; Ce programme lit une tension binaire venant de l'ADC, le
                       00009 ; convertit en decimal et apres en ASCII.
                       00010 ; Ensuite, le resultat est envoye via USART au terminal PC
-                      00011 ;
-                      00012 ; NOTE: extremely important... you cant have file names like PIC-x-y- etc with
-                      00013 ; the colons like that... it will not compile!!!! fix that in your actual project file
-                      00014 ; ______________________________________________________________________________
-                      00015 
-                      00016 ; ==============================================================================
-                      00017 ;                           variables/constantes
-                      00018 ; ==============================================================================
-                      00019 
-                      00020     ; import labels from other modules
-  0000                00021     EXTERN      PTR_PROMPT_MSG
-                      00022     ; subprograms
-  0000                00023     EXTERN      USART_Config, ADC_Config, TMR1_Config
-                      00024 
-                      00025     ; ces registres sont accesibles de n'importe quelle page de memoire
-                      00026     ; I believe I have to go ahead and use UDATA... I should do that
-                      00027 SHARED_REGS     UDATA_SHR   ;0x70
-0000                  00028 W_TEMP          RES 1   ; pour context sauvegarde (ISR)
-0001                  00029 STATUS_TEMP     RES 1   ; pour context sauvegarde (ISR)
-0002                  00030 ADC_RESULT      RES 1   ; contient le resultat
-                      00031                         ; binaire (tension) de l'ADC
-0003                  00032 TMR1_V_COUNT    RES 1   ; contient le nombre de fois le peripherique
-                      00033                         ; Timer1 a fait un overflow
-0004                  00034 TX_CHAR_COUNT   RES 1   ; contient le nombre de caracteres pas encore envoye via
-                      00035                         ; USART pour un transfert donnee
-0005                  00036 CURRENT_MODE    RES 1   ; contient le mode de fonctionnement actuel du systeme
-                      00037                         ; 'A' pour automatique, 'D' pour manuel
-0006                  00038 MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
-                      00039                         ; l'utilisateur
-                      00040 
-                      00041     ; export labels to other modules
-  0000                00042     GLOBAL      W_TEMP, STATUS_TEMP, ADC_RESULT, TMR1_V_COUNT, TX_CHAR_COUNT, CURRENT_MODE, MODE_REQUEST
-                      00043 
-                      00044 ; ==============================================================================
-                      00045 ;                               configuration du uC
-                      00046 ; ==============================================================================
-                      00047 
-                      00048     list p=16f877
-                      00049     include "p16f877.inc"
+                      00011 ; ______________________________________________________________________________
+                      00012 
+                      00013 ; ==============================================================================
+                      00014 ;                           variables/constantes
+                      00015 ; ==============================================================================
+                      00016 
+                      00017     ; import labels from other modules
+  0000                00018     EXTERN      PTR_PROMPT_MSG, PTR_RESULT_MSG
+                      00019     ; subprograms
+  0000                00020     EXTERN      copy_init_data, USART_Config, ADC_Config, TMR1_Config, PRINT_PROMPT_MSG
+                      00021 
+                      00022     ; ces registres sont accesibles de n'importe quelle page de memoire
+                      00023     ; I believe I have to go ahead and use UDATA... I should do that
+                      00024 SHARED_REGS     UDATA_SHR
+0000                  00025 W_TEMP          RES 1   ; pour context sauvegarde (ISR)
+0001                  00026 STATUS_TEMP     RES 1   ; pour context sauvegarde (ISR)
+0002                  00027 ADC_RESULT      RES 1   ; contient le resultat
+                      00028                         ; binaire (tension) de l'ADC
+0003                  00029 TMR1_V_COUNT    RES 1   ; contient le nombre de fois le peripherique
+                      00030                         ; Timer1 a fait un overflow
+0004                  00031 CURRENT_MODE    RES 1   ; contient le mode de fonctionnement actuel du systeme
+                      00032                         ; 'A' pour automatique, 'D' pour manuel
+0005                  00033 MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
+                      00034                         ; l'utilisateur
+                      00035 
+                      00036     ; export labels to other modules
+  0000                00037     GLOBAL      W_TEMP, STATUS_TEMP, ADC_RESULT, TMR1_V_COUNT, CURRENT_MODE, MODE_REQUEST
+                      00038 
+                      00039 ; ==============================================================================
+                      00040 ;                               configuration du uC
+                      00041 ; ==============================================================================
+                      00042 
+                      00043     list p=16f877
+                      00044     include "p16f877.inc"
                       00001         LIST
                       00002 
                       00003 ;==========================================================================
                       00004 ; Build date : Oct 24 2019
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  2
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
                       00005 ;  MPASM PIC16F877 processor include
                       00006 ; 
                       00007 ;  (c) Copyright 1999-2019 Microchip Technology, All rights reserved
                       00008 ;==========================================================================
                       00009 
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
                       00541         LIST
-                      00050 
-  0006                00051     constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
-  0019                00052     constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
-                      00053 
-                      00054     ; PIC16F877 Configuration Bit Settings
-                      00055     ; turn on ICD with _DEBUG_OFF, because this
-                      00056     ; clears the DEBUG bit in the config word (see doc)
-2007   3F39           00057     __CONFIG _DEBUG_OFF & _LVP_OFF & _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _CPD_OFF
+                      00045 
+                      00046     ; PIC16F877 Configuration Bit Settings
+                      00047     ; turn on ICD with _DEBUG_OFF, because this
+                      00048     ; clears the DEBUG bit in the config word (see doc)
+2007   3F39           00049     __CONFIG _DEBUG_OFF & _LVP_OFF & _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _CPD_OFF
                              & _WRT_ON
-                      00058 
-                      00059 
-                      00060 START_PROGRAM   CODE      0x000
-0000   0000           00061                 nop              ; reserved for the  In-Circuit Debugger
-0001   ???? ????      00062                 PAGESEL   MAIN_Config
-0003   2???           00063                 goto      MAIN_Config
+                      00050 
+                      00051 
+                      00052 START_PROGRAM   CODE      0x000
+0000   0000           00053                 nop              ; reserved for the  In-Circuit Debugger
+0001   ???? ???? 2??? 00054                 lgoto      MAIN_Config
+                      00055 
+                      00056 #define INTERRUPTS_ON            ; si commenté, les interrupts ne sont pas enables
+                      00057                                  ; si c'est le cas, seulement le message de prompt
+                      00058                                  ; est affiché au terminal et le programme reste
+                      00059                                  ; dans la boucle while() sans en sortir
+                      00060 
+                      00061 ; ==============================================================================
+                      00062 ;                         configuration des periphiques
+                      00063 ; ==============================================================================
                       00064 
-                      00065 ;#define INTERRUPTS_ON           ; si commenté, les interrupts ne sont pas enables
-                      00066     ;clrf        PCLATH          ; 1ere page memoire programme selectionne
-                      00067 
-                      00068 ; ==============================================================================
-                      00069 ;                         configuration des periphiques
-                      00070 ; ==============================================================================
-                      00071 
-                      00072 MAIN_FILE       CODE
-0000                  00073 MAIN_Config
-0000   ???? ????      00074     PAGESEL     USART_Config
-0002   2???           00075     call        USART_Config
-0003   ???? ????      00076     PAGESEL     ADC_Config
-0005   2???           00077     call        ADC_Config
-0006   ???? ????      00078     PAGESEL     TMR1_Config
-0008   2???           00079     call        TMR1_Config
-                      00080 
-                      00081 
-                      00082 ; ==============================================================================
-                      00083 ;                    Print prompt message to PC terminal (polling)
-                      00084 ; ==============================================================================
+                      00065 MAIN_FILE       CODE
+                      00066 
+                      00067 ; ENABLE_MCLR     
+                      00068     ; banksel     PCON
+                      00069     ; ; this is to enable master clear button on PICDEM
+                      00070     ; movlw         (1 << NOT_BOR | 1 << NOT_POR )
+                      00071     ; movwf       PCON
+                      00072     
+                      00073 
+0000                  00074 MAIN_Config
+0000   ???? ????      00075     PAGESEL     copy_init_data
+0002   ???? ???? 2??? 00076     lcall        copy_init_data
+                      00077     ; the ADC result msg is initialized to "[X,X, ,V,\r,\n,\0]"
+                      00078     ; the prompt terminal msg is initialized to "[T,E,S,T,\r,\n,\0]"
+0005   ???? ????      00079     PAGESEL     USART_Config
+0007   ???? ???? 2??? 00080     lcall        USART_Config
+000A   ???? ????      00081     PAGESEL     ADC_Config
+000C   ???? ???? 2??? 00082     lcall        ADC_Config
+000F   ???? ????      00083     PAGESEL     TMR1_Config
+0011   ???? ???? 2??? 00084     lcall        TMR1_Config
                       00085 
-                      00086 ; --------------------------------------------------------------
-                      00087 ;      Load prompt message into RAM and initialize sizeof msg
-                      00088 ; --------------------------------------------------------------
-                      00089 
-0009                  00090 LOAD_PROMPT_RAM
-0009   ????           00091     bankisel PTR_PROMPT_MSG ; selectionner banque pour l'acces indirecte
-000A   30??           00092     movlw PTR_PROMPT_MSG    ; intialiser le pointeur
-                      00093 
-000B   0084           00094     movwf FSR               ; le FSR contient le pointeur
-000C   3054           00095     movlw A'T'              ; premier byte du message prompt
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  3
+                      00086 
+                      00087 ; ==============================================================================
+                      00088 ;               Load/initialize prompt and result msg and print prompt
+                      00089 ; ==============================================================================
+                      00090 
+                      00091     ; the prompt terminal message is sent with polling method to PC terminal
+0014   ???? ????      00092     PAGESEL     PRINT_PROMPT_MSG
+0016   ???? ???? 2??? 00093     lcall        PRINT_PROMPT_MSG
+                      00094 
+                      00095 ; ==============================================================================
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  3
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-000D   0080           00096     movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
-                      00097                             ; est charge avec le premier byte du msg ('T') en ASCII
+                      00096 ;                           Interrupts configuration
+                      00097 ; ==============================================================================
                       00098 
-Message[305]: Using default destination of 1 (file).
-000E   0A84           00099     incf FSR               ; prochain byte ** add the destination (incf = FSR, F)***
-000F   3065           00100     movlw A'e'              ; etc...
-0010   0080           00101     movwf INDF
-                      00102 
-Message[305]: Using default destination of 1 (file).
-0011   0A84           00103     incf FSR
-0012   3073           00104     movlw A's'
-0013   0080           00105     movwf INDF
-                      00106 
-Message[305]: Using default destination of 1 (file).
-0014   0A84           00107     incf FSR
-0015   3074           00108     movlw A't'
-0016   0080           00109     movwf INDF
-                      00110 
-Message[305]: Using default destination of 1 (file).
-0017   0A84           00111     incf FSR
-0018   300D           00112     movlw A'\r'
-0019   0080           00113     movwf INDF
-                      00114 
-Message[305]: Using default destination of 1 (file).
-001A   0A84           00115     incf FSR
-001B   300A           00116     movlw A'\n'
-001C   0080           00117     movwf INDF
-                      00118 
-                      00119     ; The prompt is 6 bytes long, initialize this value
-001D   3006           00120     movlw SIZE_PROMPT_MSG
-001E   00??           00121     movwf TX_CHAR_COUNT
-                      00122 
-001F                  00123 PRINT_PROMPT_MSG
-001F   1283 1303      00124     banksel     PIR1              ; selectionne le bank pour PIR1 (RP1, RP0)
-0021   ????           00125     bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
-                      00126 
-0022   30??           00127     movlw       PTR_PROMPT_MSG
-0023   0084           00128     movwf       FSR               ; point to the start of the prompt msg
-                      00129 
-0024                  00130 TEST_TXIF
-0024   1E0C           00131     btfss       PIR1, TXIF        ; test if the TX_REG is empty
-0025   2???           00132     goto        TEST_TXIF         ; sinon, attendre
-                      00133 
-0026   0800           00134     movf        INDF, W
-0027   0099           00135     movwf       TXREG             ; send first byte to USART TX register
-Message[305]: Using default destination of 1 (file).
-0028   0A84           00136     incf        FSR               ; increment pointer index to next char in prompt msg
-Message[305]: Using default destination of 1 (file).
-0029   0B??           00137     decfsz      TX_CHAR_COUNT     ; decrement # of chars that remain to be sent
-002A   2???           00138     goto        TEST_TXIF         ; skip if the entire message has been sent
-                      00139                                   ; this would mean that TX_CHAR_COUNT went from 6 to 0
-                      00140 
-                      00141 ; ==============================================================================
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  4
-
-
-LOC  OBJECT CODE     LINE SOURCE TEXT
-  VALUE
-
-                      00142 ;                           Interrupts configuration
-                      00143 ; ==============================================================================
-                      00144 
-                      00145 #ifdef INTERRUPTS_ON
-                      00146 PERIPH_INT_ENABLE
-                      00147   banksel     INTCON
-                      00148   bsf         INTCON, PEIE  ; ADC/USART peripheral interrupt enable
-                      00149 GLOBAL_INT_ENABLE
-                      00150   banksel     INTCON
-                      00151   bsf         INTCON, GIE  ; global interrupt enable
-                      00152 USART_RCIF_ENABLE
-                      00153   banksel     PIE1
-                      00154   bsf         PIE1, RCIE   ; Receive USART flag enable
-                      00155 #endif
-                      00156 
-                      00157 ; ==============================================================================
-                      00158 ;                       programme principal (boucle infinie)
-                      00159 ; ==============================================================================
-002B                  00160 main
-002B   0000           00161         nop
-002C   2???           00162         goto     main
-                      00163 
-3F39                  00164         end                ; fin du programme (directive d'assemblage)
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  5
+                      00099 ; clear all interrupt flags on startup
+0019                  00100 CLR_PERIPH_FLAGS
+0019   1283 1303      00101   banksel     PIR1
+001B   100C           00102   bcf         PIR1, TMR1IF 
+001C   130C           00103   bcf         PIR1, ADIF
+                      00104 
+                      00105 
+                      00106 #ifdef INTERRUPTS_ON
+001D                  00107 PERIPH_INT_ENABLE
+001D   1283 1303      00108   banksel     INTCON
+001F   170B           00109   bsf         INTCON, PEIE  ; ADC/USART peripheral interrupt enable
+0020                  00110 USART_RCIF_ENABLE
+0020   1683 1303      00111   banksel     PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0022   168C           00112   bsf         PIE1, RCIE   ; Receive USART flag enable
+0023                  00113 GLOBAL_INT_ENABLE
+0023   1283 1303      00114   banksel     INTCON
+0025   178B           00115   bsf         INTCON, GIE  ; global interrupt enable
+                      00116 #endif
+                      00117 
+                      00118 ; ==============================================================================
+                      00119 ;                       programme principal (boucle infinie)
+                      00120 ; ==============================================================================
+                      00121 
+0026                  00122 main
+0026   0000           00123         nop
+0027   ???? ???? 2??? 00124         lgoto     main
+                      00125 
+                      00126 ; ----------------------------------
+                      00127 ;          end module code
+                      00128 ; ----------------------------------
+3F39                  00129         end
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  4
 
 
 SYMBOL TABLE
@@ -260,15 +213,16 @@ CHS1                              00000004
 CHS2                              00000005
 CKE                               00000006
 CKP                               00000004
+CLR_PERIPH_FLAGS                  00000019
 CREN                              00000004
 CSRC                              00000007
-CURRENT_MODE                      00000005
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  6
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  5
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+CURRENT_MODE                      00000004
 D                                 00000005
 DATA_ADDRESS                      00000005
 DC                                00000001
@@ -288,6 +242,7 @@ FERR                              00000002
 FSR                               00000004
 GCEN                              00000007
 GIE                               00000007
+GLOBAL_INT_ENABLE                 00000023
 GO                                00000002
 GO_DONE                           00000002
 GO_NOT_DONE                       00000002
@@ -301,11 +256,11 @@ INDF                              00000000
 INTCON                            0000000B
 INTE                              00000004
 INTEDG                            00000006
+INTERRUPTS_ON                     
 INTF                              00000001
 IRP                               00000007
-LOAD_PROMPT_RAM                   00000009
 MAIN_Config                       00000000
-MODE_REQUEST                      00000006
+MODE_REQUEST                      00000005
 NOT_A                             00000005
 NOT_ADDRESS                       00000005
 NOT_BO                            00000000
@@ -320,14 +275,14 @@ NOT_TO                            00000004
 NOT_TX8                           00000006
 NOT_W                             00000002
 NOT_WRITE                         00000002
-OBF                               00000006
-OERR                              00000001
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  7
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  6
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+OBF                               00000006
+OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
 PCFG0                             00000000
@@ -339,6 +294,7 @@ PCLATH                            0000000A
 PCON                              0000008E
 PEIE                              00000006
 PEN                               00000002
+PERIPH_INT_ENABLE                 0000001D
 PIE1                              0000008C
 PIE2                              0000008D
 PIR1                              0000000C
@@ -349,7 +305,7 @@ PORTC                             00000007
 PORTD                             00000008
 PORTE                             00000009
 PR2                               00000092
-PRINT_PROMPT_MSG                  0000001F
+PRINT_PROMPT_MSG                  00000000
 PS0                               00000000
 PS1                               00000001
 PS2                               00000002
@@ -358,6 +314,7 @@ PSPIE                             00000007
 PSPIF                             00000007
 PSPMODE                           00000004
 PTR_PROMPT_MSG                    00000000
+PTR_RESULT_MSG                    00000000
 R                                 00000002
 RA0                               00000000
 RA1                               00000001
@@ -377,16 +334,16 @@ RBIE                              00000003
 RBIF                              00000000
 RC0                               00000000
 RC1                               00000001
-RC2                               00000002
-RC3                               00000003
-RC4                               00000004
-RC5                               00000005
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  8
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  7
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+RC2                               00000002
+RC3                               00000003
+RC4                               00000004
+RC5                               00000005
 RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
@@ -419,7 +376,6 @@ R_NOT_W                           00000002
 R_W                               00000002
 S                                 00000003
 SEN                               00000000
-SIZE_PROMPT_MSG                   00000006
 SMP                               00000007
 SPBRG                             00000099
 SPEN                              00000007
@@ -437,15 +393,15 @@ SSPM2                             00000002
 SSPM3                             00000003
 SSPOV                             00000006
 SSPSTAT                           00000094
-STATUS                            00000003
-STATUS_TEMP                       00000001
-SYNC                              00000004
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE  9
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  8
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+STATUS                            00000003
+STATUS_TEMP                       00000001
+SYNC                              00000004
 T0CS                              00000005
 T0IE                              00000005
 T0IF                              00000002
@@ -459,7 +415,6 @@ T1SYNC                            00000002
 T2CKPS0                           00000000
 T2CKPS1                           00000001
 T2CON                             00000012
-TEST_TXIF                         00000024
 TMR0                              00000001
 TMR0IE                            00000005
 TMR0IF                            00000002
@@ -497,14 +452,14 @@ TRISB5                            00000005
 TRISB6                            00000006
 TRISB7                            00000007
 TRISC                             00000087
-TRISC0                            00000000
-TRISC1                            00000001
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE 10
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE  9
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+TRISC0                            00000000
+TRISC1                            00000001
 TRISC2                            00000002
 TRISC3                            00000003
 TRISC4                            00000004
@@ -534,16 +489,15 @@ TXIE                              00000004
 TXIF                              00000004
 TXREG                             00000019
 TXSTA                             00000098
-TX_CHAR_COUNT                     00000004
 UA                                00000001
 USART_Config                      00000000
+USART_RCIF_ENABLE                 00000020
 W                                 00000000
 WCOL                              00000007
 WR                                00000001
 WREN                              00000002
 WRERR                             00000003
 W_TEMP                            00000000
-X_VAL_SPBRG                       00000019
 Z                                 00000002
 _BODEN_OFF                        00003FBF
 _BODEN_ON                         00003FFF
@@ -557,13 +511,13 @@ _CP_HALF                          00001FDF
 _CP_OFF                           00003FFF
 _CP_UPPER_256                     00002FEF
 _DEBUG_OFF                        00003FFF
-_DEBUG_ON                         000037FF
-MPASM 5.86                          MAIN.ASM   11-29-2020  22:11:35         PAGE 11
+MPASM 5.86                          MAIN.ASM   12-2-2020  20:10:53         PAGE 10
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+_DEBUG_ON                         000037FF
 _DEVID1                           00002006
 _FOSC_EXTRC                       00003FFF
 _FOSC_HS                          00003FFE
@@ -590,10 +544,11 @@ _WRT_OFF                          00003DFF
 _WRT_ON                           00003FFF
 _XT_OSC                           00003FFD
 __16F877                          00000001
-main                              0000002B
+copy_init_data                    00000000
+main                              00000026
 
 Errors   :     0
 Warnings :     0 reported,     0 suppressed
-Messages :     7 reported,     0 suppressed
+Messages :     1 reported,     0 suppressed
 
 

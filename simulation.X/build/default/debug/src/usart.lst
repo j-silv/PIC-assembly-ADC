@@ -1,210 +1,324 @@
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  1
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00001 
-                      00002 ; ----------------------------------------------------
-                      00003 ;        USART (mode asynchronous full-duplex)
-                      00004 ; ----------------------------------------------------
-                      00005 
-                      00006       list p=16f877
-                      00007       include "p16f877.inc"
+                      00001 ; ----------------------------------------------------
+                      00002 ;        USART (mode asynchronous full-duplex)
+                      00003 ; ----------------------------------------------------
+                      00004 
+                      00005     list p=16f877a
+                      00006     include "p16f877a.inc"
                       00001         LIST
                       00002 
                       00003 ;==========================================================================
                       00004 ; Build date : Oct 24 2019
-                      00005 ;  MPASM PIC16F877 processor include
+                      00005 ;  MPASM PIC16F877A processor include
                       00006 ; 
                       00007 ;  (c) Copyright 1999-2019 Microchip Technology, All rights reserved
                       00008 ;==========================================================================
                       00009 
-Message[301]: MESSAGE: (Processor-header file mismatch.  Verify selected processor.)
-                      00541         LIST
-                      00008 
-  0006                00009       constant   SIZE_PROMPT_MSG = 0x06   ; prompt message is 6 bytes long
-  0019                00010       constant   X_VAL_SPBRG = D'25'  ; prescaler valeur pour le baud-rate generateur
-                      00011 
-                      00012 ; ==============================================================================
-                      00013 ;                          variables/constantes
-                      00014 ; ==============================================================================
-                      00015       ; registers
-  0000                00016       EXTERN     TX_CHAR_COUNT, CURRENT_MODE, MODE_REQUEST
-                      00017       ; subprograms
-  0000                00018       EXTERN      START_ADC
+                      00567         LIST
+                      00007 
+                      00008 ; ==============================================================================
+                      00009 ;                          variables/constantes
+                      00010 ; ==============================================================================
+                      00011       ; registers
+  0000                00012       EXTERN    CURRENT_MODE, MODE_REQUEST, TMR1_V_COUNT
+                      00013       ; subprograms
+  0000                00014       EXTERN    START_ADC
+                      00015 
+  0019                00016                 constant        X_VAL_SPBRG = D'25'     ; prescaler valeur pour le baud-rate generateur
+  0000                00017                 constant        UNITY_OFFSET = 0x00     ; this would correspond to the index that the le
+                            tter 'U' occupies
+  0002                00018                 constant        DECIMAL_OFFSET = 0x02   ; this would correspond to the index that the le
+                            tter 'D' occupies
                       00019 
-                      00020                  UDATA  0x21
-0021                  00021 PTR_PROMPT_MSG   RES 1   ; pointe a msg prompt pour l'utilisateur (6 bytes)
-                      00022                          ; "Test\r\n" (bank 0)
+                      00020                 ; UDATA  0x21
+                      00021 ; PTR_PROMPT_MSG  RES 1   ; pointe a msg prompt pour l'utilisateur "Test\r\n"
+                      00022 ; PTR_RESULT_MSG  RES 1   ; pointe a ADC result qu'on va envoyer via mode auto/manual
                       00023 
-                      00024       ; export labels to other modules
-  0000                00025       GLOBAL     PTR_PROMPT_MSG
-                      00026 
-                      00027 ; ==============================================================================
-                      00028 ;                          peripheral configuration
-                      00029 ; ==============================================================================
-                      00030 
-                      00031 USART_FILE    CODE
-0000                  00032 USART_Config
-  0000                00033     GLOBAL      USART_Config    ; export sub-program label to other modules
-                      00034     ; entrees/sorties (RC6/TX/CK and RC7/RX/DT)
-                      00035     ; TXUSART EST OUTPUT (RC6 -> sortie)
-                      00036     ; RXUSART EST INPUT (RC7 -> entree)
-0000   1683 1303      00037     banksel     TRISC
-0002   3080           00038     movlw       ( 0<<TRISC6 | 1<<TRISC7 )
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0003   0087           00039     movwf       TRISC
-                      00040 
-                      00041     ; USART baud-rate
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  2
+                      00024 USART_MSGS      IDATA
+0000   54 45 53 54 0D 00025 PTR_PROMPT_MSG  DB  "TEST\r\n\0"    ; pointe a msg prompt pour l'utilisateur "Test\r\n"
+       0A 00 
+0007   58 2C 58 20 56 00026 PTR_RESULT_MSG  DB  "X,X V\r\n\0"   ; pointe a ADC result qu'on va envoyer via mode auto/manual
+       0D 0A 00 
+                      00027 
+                      00028 
+                      00029       ; export labels to other modules
+  0000                00030       GLOBAL     PTR_PROMPT_MSG, PTR_RESULT_MSG
+                      00031 
+                      00032 ; ==============================================================================
+                      00033 ;                          peripheral configuration
+                      00034 ; ==============================================================================
+                      00035 
+                      00036 USART_FILE    CODE
+0000                  00037 USART_Config
+  0000                00038     GLOBAL      USART_Config    ; export sub-program label to other modules
+                      00039     ; entrees/sorties (RC6/TX/CK and RC7/RX/DT)
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00042     ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
-                      00043     ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
-                      00044     ; valeur du registre SPBRG et est de 0...255
-                      00045     ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
-0004   1683 1303      00046     banksel     SPBRG
-0006   3019           00047     movlw       X_VAL_SPBRG
+                      00040     ; TXUSART EST OUTPUT (RC6 -> sortie)
+                      00041     ; RXUSART EST INPUT (RC7 -> entree)
+0000   1683 1303      00042     banksel     TRISC
+0002   3080           00043     movlw       ( 0<<TRISC6 | 1<<TRISC7 )
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0007   0099           00048     movwf       SPBRG
-                      00049 
-                      00050     ; mode asynchrone
-                      00051     ; high speed pour reduire l'erreur
-                      00052     ; 8-bit transmission mode
-                      00053     ; enable la transmission
-0008   1683 1303      00054     banksel     TXSTA
-000A   3024           00055     movlw           ( 1<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
+0003   0087           00044     movwf       TRISC
+                      00045 
+                      00046     ; USART baud-rate
+                      00047     ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
+                      00048     ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
+                      00049     ; valeur du registre SPBRG et est de 0...255
+                      00050     ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
+0004   1683 1303      00051     banksel     SPBRG
+0006   3019           00052     movlw       X_VAL_SPBRG
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-000B   0098           00056     movwf           TXSTA
-                      00057 
-                      00058     ; peripherique serie est "enabled"
-                      00059     ; enables continuous receive
-000C   1283 1303      00060     banksel     RCSTA
-000E   3090           00061     movlw       ( 1<<SPEN | 1<<CREN )
-000F   0098           00062     movwf       RCSTA
-                      00063 
-0010   ???? ????      00064     banksel     TX_CHAR_COUNT
-0012   01??           00065     clrf        TX_CHAR_COUNT    ; initaliser nombre de char a envoyer a 0
-0013   0008           00066     return
-                      00067 
-                      00068 ; ==============================================================================
-                      00069 ;                           Interrupt callbacks
-                      00070 ; ==============================================================================
+0007   0099           00053     movwf       SPBRG
+                      00054 
+                      00055     ; mode asynchrone
+                      00056     ; high speed pour reduire l'erreur
+                      00057     ; 8-bit transmission mode
+                      00058     ; enable transmission (for polling prompt msg transmission)
+0008   1683 1303      00059     banksel     TXSTA
+000A   3024           00060     movlw       ( 1<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+000B   0098           00061     movwf       TXSTA
+                      00062 
+                      00063     ; peripherique serie est "enabled"
+                      00064     ; enables continuous receive
+000C   1283 1303      00065     banksel     RCSTA
+000E   3090           00066     movlw       ( 1<<SPEN | 1<<CREN )
+000F   0098           00067     movwf       RCSTA
+                      00068 
+0010   0008           00069     return
+                      00070 
                       00071 
-                      00072 ; ----------------------------------
-                      00073 ;              RCIF
-                      00074 ; ----------------------------------
+                      00072 ; ==============================================================================
+                      00073 ;               Print prompt message to PC terminal (polling)
+                      00074 ;==============================================================================
                       00075 
-0014                  00076 RCIF_Callback
-  0000                00077     GLOBAL      RCIF_Callback
-0014   1283 1303      00078     banksel     RCREG
-0016   081A           00079     movf        RCREG, W
-0017   00??           00080     movwf       MODE_REQUEST         ; save what was received into a dedicated register
-                      00081                                      ; this is to avoid possibly reading 2 different
-                      00082                                      ; bytes in FIFO during the XOR tests below
-0018                  00083 TEST_IF_A_UPPER
-0018   08??           00084     movf        MODE_REQUEST, W      ; move what was received into working reg
-0019   3A41           00085     xorlw       A'A'                 ; this operation will make Z flag = 0 if
-                      00086                                      ; the character 'A' was received
-001A   1903           00087     btfsc       STATUS, Z
-001B   2???           00088     goto SET_AUTOMATIC_MODE
+                      00076 ; ----------------------------------------------
+                      00077 ;      Print prompt via USART to PC terminal
+                      00078 ; ----------------------------------------------
+                      00079 
+0011                  00080 PRINT_PROMPT_MSG
+  0000                00081     GLOBAL PRINT_PROMPT_MSG
+                      00082     ; necessaire a faire un banksel/bankisel pour les deux, car ces 2 registres sont accede
+                      00083     ; par 2 manieres different - addressage directe et addressage indirecte
+0011   1283 1303      00084     banksel     PIR1              ; selectionne le bank pour PIR1 this (RP1, RP0)
+0013   ????           00085     bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
+                      00086 
+0014   30??           00087     movlw       PTR_PROMPT_MSG
+0015   0084           00088     movwf       FSR               ; point to the start of the prompt msg
                       00089 
-001C                  00090 TEST_IF_A_LOWER
-001C   08??           00091     movf        MODE_REQUEST, W      ; move what was received into working reg
-001D   3A61           00092     xorlw       A'a'                 ; this operation will make Z flag = 0 if
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  3
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  3
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00093                                      ; the character 'a' was received
-001E   1903           00094     btfsc       STATUS, Z
-001F   2???           00095     goto SET_AUTOMATIC_MODE
+0016                  00090 TEST_END_OF_PROMPT_MSG
+0016   0800           00091     movf        INDF, W           ; move current byte pointed by FSR to work reg
+0017   3A00           00092     xorlw       A'\0'             ; this operation will make Z flag = 1 if
+                      00093                                   ; null character ('\0') of the msg is reached
+0018   1903           00094     btfsc       STATUS, Z         ; if the end of the msg is reached, end USART comm
+0019   2???           00095     goto        PROMPT_MSG_SENT
                       00096 
-0020                  00097 TEST_IF_R_UPPER
-0020   08??           00098     movf        MODE_REQUEST, W      ; move what was received into working reg
-0021   3A52           00099     xorlw       A'R'                 ; this operation will make Z flag = 0 if
-                      00100                                      ; the character 'R' was received
-0022   1903           00101     btfsc       STATUS, Z
-0023   2???           00102     goto SET_MANUAL_MODE
-                      00103 
-0024                  00104 TEST_IF_R_LOWER
-0024   08??           00105     movf        MODE_REQUEST, W      ; move what was received into working reg
-0025   3A72           00106     xorlw       A'r'                 ; this operation will make Z flag = 0 if
-                      00107                                      ; the character 'r' was received
-0026   1903           00108     btfsc       STATUS, Z
-0027   2???           00109     goto SET_MANUAL_MODE
-                      00110 
-0028                  00111 TEST_IF_D_UPPER
-0028   08??           00112     movf        MODE_REQUEST, W      ; move what was received into working reg
-0029   3A44           00113     xorlw       A'D'                 ; this operation will make Z flag = 0 if
-                      00114                                      ; the character 'D' was received
-002A   1903           00115     btfsc       STATUS, Z
-002B   2???           00116     goto CONVERSION_REQUEST
-                      00117 
-002C                  00118 TEST_IF_D_LOWER
-002C   08??           00119     movf        MODE_REQUEST, W      ; move what was received into working reg
-002D   3A64           00120     xorlw       A'd'                 ; this operation will make Z flag = 0 if
-                      00121                                      ; the character 'd' was received
-002E   1903           00122     btfsc       STATUS, Z
-002F   2???           00123     goto CONVERSION_REQUEST
-                      00124 
-0030                  00125 SET_AUTOMATIC_MODE
-0030   3041           00126     movlw       A'A'
-0031   00??           00127     movwf       CURRENT_MODE         ; set the current mode reg to automatic
-0032   1683 1303      00128     banksel     PIE1
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-0034   140C           00129     bsf         PIE1, TMR1IE         ; Timer1 interrupt enable
-0035   2???           00130     goto EXIT_CALLBACK
-                      00131 
-0036                  00132 SET_MANUAL_MODE
-0036   3052           00133     movlw       A'R'
-0037   00??           00134     movwf       CURRENT_MODE         ; set the current mode reg to manual
-0038   1683 1303      00135     banksel     PIE1
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-003A   100C           00136     bcf         PIE1, TMR1IE         ; Timer1 interrupt disable
-003B   2???           00137     goto EXIT_CALLBACK
-                      00138 
-003C                  00139 CONVERSION_REQUEST
-003C   08??           00140     movf        CURRENT_MODE, W
-003D   3A52           00141     xorlw       A'R'                 ; this operation will make Z flag = 0 if
-                      00142                                      ; the current mode is manual! Thus the
-                      00143                                      ; user has correctly requested a conersion
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  4
+001A                  00097 TEST_TXIF
+001A   1E0C           00098     btfss       PIR1, TXIF        ; test if the TX_REG is empty
+001B   2???           00099     goto        TEST_TXIF         ; sinon, attendre
+                      00100 
+001C   0800           00101     movf        INDF, W           ; place msg byte pointed to by FSR into work reg
+001D   0099           00102     movwf       TXREG             ; send msg byte to USART TX register
+Message[305]: Using default destination of 1 (file).
+001E   0A84           00103     incf        FSR               ; increment pointer index to next byte in prompt msg
+001F   2???           00104     goto        TEST_END_OF_PROMPT_MSG
+                      00105 
+                      00106 ; it is not necessary to preload the FSR and preset the IRP, a nop instruction could
+                      00107 ; be placed here instead, or a rearranged labeling
+0020                  00108 PROMPT_MSG_SENT
+0020   ????           00109                 bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
+                      00110                                           ; the start of this msg
+0021   30??           00111                 movlw PTR_RESULT_MSG      ; preload the FSR with the address to the
+0022   0084           00112                 movwf FSR                 ; ADC result (this will be the next msg to send)
+                      00113 
+0023   0008           00114                 return
+                      00115 
+                      00116 ; ==============================================================================
+                      00117 ;                           Interrupt callbacks
+                      00118 ; ==============================================================================
+                      00119 
+                      00120 ; ----------------------------------
+                      00121 ;              RCIF
+                      00122 ; ----------------------------------
+                      00123 
+0024                  00124 RCIF_Callback
+  0000                00125     GLOBAL      RCIF_Callback
+0024   1283 1303      00126     banksel     RCREG
+0026   081A           00127     movf        RCREG, W
+0027   00??           00128     movwf       MODE_REQUEST         ; save what was received into a dedicated register
+                      00129                                      ; this is to avoid possibly reading 2 different
+                      00130                                      ; bytes in FIFO during the XOR tests below
+0028                  00131 TEST_IF_A_UPPER
+0028   08??           00132     movf        MODE_REQUEST, W      ; move what was received into working reg
+0029   3A41           00133     xorlw       A'A'                 ; this operation will make Z flag = 1 if
+                      00134                                      ; the character 'A' was received
+002A   1903           00135     btfsc       STATUS, Z
+002B   2???           00136     goto        SET_AUTOMATIC_MODE
+                      00137 
+002C                  00138 TEST_IF_A_LOWER
+002C   08??           00139     movf        MODE_REQUEST, W      ; move what was received into working reg
+002D   3A61           00140     xorlw       A'a'                 ; this operation will make Z flag = 1 if
+                      00141                                      ; the character 'a' was received
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  4
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-003E   1903           00144     btfsc       STATUS, Z
-003F   ???? ????      00145     PAGESEL     START_ADC
-0041   2???           00146     call        START_ADC
-                      00147 
-0042                  00148 EXIT_CALLBACK
-0042   0008           00149     return
-                      00150 
-                      00151 ; ----------------------------------
-                      00152 ;              TXIF
-                      00153 ; ----------------------------------
-                      00154 
-0043                  00155 TXIF_Callback
-  0000                00156     GLOBAL      TXIF_Callback
-0043   1283 1303      00157     banksel     TXREG
-0045   3061           00158     movlw       A'a'     ; move the ASCII code of "a" to w
-0046   0099           00159     movwf       TXREG    ; write to USART transfer register
-0047   0008           00160     return
-                      00161 
-                      00162 ; ----------------------------------
-                      00163 ;          end module code
-                      00164 ; ----------------------------------
+002E   1903           00142     btfsc       STATUS, Z
+002F   2???           00143     goto        SET_AUTOMATIC_MODE
+                      00144 
+0030                  00145 TEST_IF_R_UPPER
+0030   08??           00146     movf        MODE_REQUEST, W      ; move what was received into working reg
+0031   3A52           00147     xorlw       A'R'                 ; this operation will make Z flag = 1 if
+                      00148                                      ; the character 'R' was received
+0032   1903           00149     btfsc       STATUS, Z
+0033   2???           00150     goto        SET_MANUAL_MODE
+                      00151 
+0034                  00152 TEST_IF_R_LOWER
+0034   08??           00153     movf        MODE_REQUEST, W      ; move what was received into working reg
+0035   3A72           00154     xorlw       A'r'                 ; this operation will make Z flag = 1 if
+                      00155                                      ; the character 'r' was received
+0036   1903           00156     btfsc       STATUS, Z
+0037   2???           00157     goto        SET_MANUAL_MODE
+                      00158 
+0038                  00159 TEST_IF_D_UPPER
+0038   08??           00160     movf        MODE_REQUEST, W      ; move what was received into working reg
+0039   3A44           00161     xorlw       A'D'                 ; this operation will make Z flag = 1 if
+                      00162                                      ; the character 'D' was received
+003A   1903           00163     btfsc       STATUS, Z
+003B   2???           00164     goto        CONVERSION_REQUEST
                       00165 
-                      00166     end
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  5
+003C                  00166 TEST_IF_D_LOWER
+003C   08??           00167     movf        MODE_REQUEST, W      ; move what was received into working reg
+003D   3A64           00168     xorlw       A'd'                 ; this operation will make Z flag = 1 if
+                      00169                                      ; the character 'd' was received
+003E   1903           00170     btfsc       STATUS, Z
+003F   2???           00171     goto        CONVERSION_REQUEST
+                      00172 
+0040                  00173 SET_AUTOMATIC_MODE
+0040   3041           00174     movlw       A'A'
+0041   00??           00175     movwf       CURRENT_MODE         ; set the current mode reg to automatic
+                      00176 
+                      00177     ; enable the TMR1
+0042   1283 1303      00178     banksel     T1CON
+0044   1410           00179     bsf         T1CON, TMR1ON
+                      00180 
+                      00181     ; Timer1 interrupt enable
+0045   1683 1303      00182     banksel     PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0047   140C           00183     bsf         PIE1, TMR1IE
+                      00184 
+                      00185     ; reset overflow count register (0 ms have passed)
+                      00186     ; necessary in case RCIF raised while TMR1_V_COUNT is at 1
+                      00187     ; if that happens, TMR1_V_COUNT would never be reset
+0048   ???? ????      00188     banksel     TMR1_V_COUNT
+004A   01??           00189     clrf        TMR1_V_COUNT
+004B   2???           00190     goto        EXIT_RCIF_CALLBACK
+                      00191 
+004C                  00192 SET_MANUAL_MODE
+004C   3052           00193     movlw       A'R'
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+004D   00??           00194     movwf       CURRENT_MODE         ; set the current mode reg to manual
+                      00195 
+                      00196     ; disable the TMR1
+004E   1283 1303      00197     banksel     T1CON
+0050   1010           00198     bcf         T1CON, TMR1ON
+                      00199 
+                      00200     ; Timer1 interrupt disable
+0051   1683 1303      00201     banksel     PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0053   100C           00202     bcf         PIE1, TMR1IE
+                      00203 
+0054   2???           00204     goto        EXIT_RCIF_CALLBACK
+                      00205 
+0055                  00206 CONVERSION_REQUEST
+0055   08??           00207     movf        CURRENT_MODE, W
+0056   3A52           00208     xorlw       A'R'                 ; this operation will make Z flag = 1 if
+                      00209                                      ; the current mode is manual! Thus the
+                      00210                                      ; user has correctly requested a conersion
+0057   1D03           00211     btfss       STATUS, Z            ; performing a btfss instead of btfsc here
+                      00212                                      ; because if Z is set, then we DO want to
+                      00213                                      ; start the ADC and if it isn't, then we want
+                      00214                                      ; to exit this callback
+0058   2???           00215     goto        EXIT_RCIF_CALLBACK
+0059   ???? ???? 2??? 00216     lcall       START_ADC
+005C   ???? ????      00217     PAGESEL     EXIT_RCIF_CALLBACK ; not technically necessary to perform
+                      00218                                    ; a PAGESEL psuedoinstruction here since no subsequent
+                      00219                                    ; goto instructions are performed in this object module
+                      00220 
+005E                  00221 EXIT_RCIF_CALLBACK
+005E   0008           00222     return
+                      00223 
+                      00224 ; ----------------------------------
+                      00225 ;              TXIF
+                      00226 ; ----------------------------------
+                      00227 
+005F                  00228 TXIF_Callback
+  0000                00229     GLOBAL      TXIF_Callback
+005F   ????           00230     bankisel    PTR_RESULT_MSG    ; this shouldn't really be necessary since
+                      00231                                   ; indirect addressing isn't used unexpectedly
+0060                  00232 TEST_END_OF_RESULT_MSG
+0060   0800           00233     movf        INDF, W           ; move current byte pointed by FSR to work reg
+0061   3A00           00234     xorlw       A'\0'             ; this operation will make Z flag = 1 if
+                      00235                                   ; null character ('\0') of the msg is reached
+0062   1903           00236     btfsc       STATUS, Z         ; if the end of the msg is reached, end USART comm
+0063   2???           00237     goto RESULT_MSG_SENT
+                      00238 
+0064                  00239 SEND_NEW_BYTE
+0064   1283 1303      00240     banksel     TXREG
+0066   0800           00241     movf        INDF, W           ; place msg byte pointed to by FSR into work reg
+0067   0099           00242     movwf       TXREG             ; send msg byte to USART TX register
+Message[305]: Using default destination of 1 (file).
+0068   0A84           00243     incf        FSR               ; increment pointer index to next byte in result msg
+0069   2???           00244     goto EXIT_TXIF_CALLBACK
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00245 
+006A                  00246 RESULT_MSG_SENT
+006A   1683 1303      00247     banksel     TXSTA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+006C   1298           00248     bcf         TXSTA, TXEN ; disable transmission
+006D   1683 1303      00249     banksel     PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+006F   120C           00250     bcf         PIE1, TXIE  ; USART TX interrupt flag disable
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0070   168C           00251     bsf         PIE1, RCIE  ; USART RC interrupt flag enable
+                      00252 
+0071                  00253 EXIT_TXIF_CALLBACK
+0071   0008           00254     return
+                      00255 
+                      00256 ; ----------------------------------
+                      00257 ;          end module code
+                      00258 ; ----------------------------------
+                      00259 
+                      00260     end
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  7
 
 
 SYMBOL TABLE
@@ -217,6 +331,7 @@ ADCON0                            0000001F
 ADCON1                            0000009F
 ADCS0                             00000006
 ADCS1                             00000007
+ADCS2                             00000006
 ADDEN                             00000003
 ADFM                              00000007
 ADIE                              00000006
@@ -229,6 +344,10 @@ BCLIF                             00000003
 BF                                00000000
 BRGH                              00000002
 C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
 CCP1CON                           00000017
 CCP1IE                            00000002
 CCP1IF                            00000002
@@ -256,21 +375,37 @@ CCPR2L                            0000001B
 CHS0                              00000003
 CHS1                              00000004
 CHS2                              00000005
+CIS                               00000003
 CKE                               00000006
-CKP                               00000004
-CONVERSION_REQUEST                0000003C
-CREN                              00000004
-CSRC                              00000007
-CURRENT_MODE                      00000000
-D                                 00000005
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  6
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  8
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+CKP                               00000004
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             0000009C
+CMIE                              00000006
+CMIF                              00000006
+CONVERSION_REQUEST                00000055
+CREN                              00000004
+CSRC                              00000007
+CURRENT_MODE                      00000000
+CVR0                              00000000
+CVR1                              00000001
+CVR2                              00000002
+CVR3                              00000003
+CVRCON                            0000009D
+CVREN                             00000007
+CVROE                             00000006
+CVRR                              00000005
+D                                 00000005
 DATA_ADDRESS                      00000005
 DC                                00000001
+DECIMAL_OFFSET                    00000002
 D_A                               00000005
 D_NOT_A                           00000005
 EEADR                             0000010D
@@ -282,7 +417,8 @@ EEDATH                            0000010E
 EEIE                              00000004
 EEIF                              00000004
 EEPGD                             00000007
-EXIT_CALLBACK                     00000042
+EXIT_RCIF_CALLBACK                0000005E
+EXIT_TXIF_CALLBACK                00000071
 F                                 00000001
 FERR                              00000002
 FSR                               00000004
@@ -300,6 +436,12 @@ IBOV                              00000005
 INDF                              00000000
 INTCON                            0000000B
 INTE                              00000004
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE  9
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 INTEDG                            00000006
 INTF                              00000001
 IRP                               00000007
@@ -322,12 +464,6 @@ OBF                               00000006
 OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  7
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 PCFG0                             00000000
 PCFG1                             00000001
 PCFG2                             00000002
@@ -347,6 +483,8 @@ PORTC                             00000007
 PORTD                             00000008
 PORTE                             00000009
 PR2                               00000092
+PRINT_PROMPT_MSG                  00000011
+PROMPT_MSG_SENT                   00000020
 PS0                               00000000
 PS1                               00000001
 PS2                               00000002
@@ -354,8 +492,15 @@ PSA                               00000003
 PSPIE                             00000007
 PSPIF                             00000007
 PSPMODE                           00000004
-PTR_PROMPT_MSG                    00000021
+PTR_PROMPT_MSG                    00000000
+PTR_RESULT_MSG                    00000007
 R                                 00000002
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE 10
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 RA0                               00000000
 RA1                               00000001
 RA2                               00000002
@@ -381,18 +526,12 @@ RC5                               00000005
 RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  8
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 RC9                               00000006
 RCD8                              00000000
 RCEN                              00000003
 RCIE                              00000005
 RCIF                              00000005
-RCIF_Callback                     00000014
+RCIF_Callback                     00000024
 RCREG                             0000001A
 RCSTA                             00000018
 RD                                00000000
@@ -408,18 +547,25 @@ RE0                               00000000
 RE1                               00000001
 RE2                               00000002
 READ_WRITE                        00000002
+RESULT_MSG_SENT                   0000006A
 RP0                               00000005
 RP1                               00000006
 RSEN                              00000001
 RX9                               00000006
 RX9D                              00000000
 R_NOT_W                           00000002
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE 11
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 R_W                               00000002
 S                                 00000003
 SEN                               00000000
-SET_AUTOMATIC_MODE                00000030
-SET_MANUAL_MODE                   00000036
-SIZE_PROMPT_MSG                   00000006
+SEND_NEW_BYTE                     00000064
+SET_AUTOMATIC_MODE                00000040
+SET_MANUAL_MODE                   0000004C
 SMP                               00000007
 SPBRG                             00000099
 SPEN                              00000007
@@ -440,12 +586,6 @@ SSPSTAT                           00000094
 START_ADC                         00000000
 STATUS                            00000003
 SYNC                              00000004
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE  9
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 T0CS                              00000005
 T0IE                              00000005
 T0IF                              00000002
@@ -459,22 +599,32 @@ T1SYNC                            00000002
 T2CKPS0                           00000000
 T2CKPS1                           00000001
 T2CON                             00000012
-TEST_IF_A_LOWER                   0000001C
-TEST_IF_A_UPPER                   00000018
-TEST_IF_D_LOWER                   0000002C
-TEST_IF_D_UPPER                   00000028
-TEST_IF_R_LOWER                   00000024
-TEST_IF_R_UPPER                   00000020
+TEST_END_OF_PROMPT_MSG            00000016
+TEST_END_OF_RESULT_MSG            00000060
+TEST_IF_A_LOWER                   0000002C
+TEST_IF_A_UPPER                   00000028
+TEST_IF_D_LOWER                   0000003C
+TEST_IF_D_UPPER                   00000038
+TEST_IF_R_LOWER                   00000034
+TEST_IF_R_UPPER                   00000030
+TEST_TXIF                         0000001A
 TMR0                              00000001
 TMR0IE                            00000005
 TMR0IF                            00000002
 TMR1                              0000000E
 TMR1CS                            00000001
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE 12
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 TMR1H                             0000000F
 TMR1IE                            00000000
 TMR1IF                            00000000
 TMR1L                             0000000E
 TMR1ON                            00000000
+TMR1_V_COUNT                      00000000
 TMR2                              00000011
 TMR2IE                            00000001
 TMR2IF                            00000001
@@ -499,12 +649,6 @@ TRISB4                            00000004
 TRISB5                            00000005
 TRISB6                            00000006
 TRISB7                            00000007
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE 10
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 TRISC                             00000087
 TRISC0                            00000000
 TRISC1                            00000001
@@ -528,6 +672,12 @@ TRISE0                            00000000
 TRISE1                            00000001
 TRISE2                            00000002
 TRMT                              00000001
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE 13
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 TX8_9                             00000006
 TX9                               00000006
 TX9D                              00000000
@@ -535,11 +685,11 @@ TXD8                              00000000
 TXEN                              00000005
 TXIE                              00000004
 TXIF                              00000004
-TXIF_Callback                     00000043
+TXIF_Callback                     0000005F
 TXREG                             00000019
 TXSTA                             00000098
-TX_CHAR_COUNT                     00000000
 UA                                00000001
+UNITY_OFFSET                      00000000
 USART_Config                      00000000
 W                                 00000000
 WCOL                              00000007
@@ -555,16 +705,9 @@ _BOREN_ON                         00003FFF
 _CONFIG                           00002007
 _CPD_OFF                          00003FFF
 _CPD_ON                           00003EFF
-_CP_ALL                           00000FCF
-_CP_HALF                          00001FDF
+_CP_ALL                           00001FFF
 _CP_OFF                           00003FFF
-MPASM 5.86                         USART.ASM   11-29-2020  22:22:28         PAGE 11
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
-_CP_UPPER_256                     00002FEF
+_CP_ON                            00001FFF
 _DEBUG_OFF                        00003FFF
 _DEBUG_ON                         000037FF
 _DEVID1                           00002006
@@ -587,10 +730,16 @@ _WDTE_OFF                         00003FFB
 _WDTE_ON                          00003FFF
 _WDT_OFF                          00003FFB
 _WDT_ON                           00003FFF
-_WRT_ENABLE_OFF                   00003DFF
-_WRT_ENABLE_ON                    00003FFF
-_WRT_OFF                          00003DFF
-_WRT_ON                           00003FFF
+_WRT_1FOURTH                      00003BFF
+MPASM 5.86                         USART.ASM   12-3-2020  0:31:22         PAGE 14
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_WRT_256                          00003DFF
+_WRT_HALF                         000039FF
+_WRT_OFF                          00003FFF
 _XT_OSC                           00003FFD
 __16F877A                         00000001
 __DEBUG                           
@@ -598,6 +747,6 @@ __MPLAB_DEBUGGER_SIMULATOR        1
 
 Errors   :     0
 Warnings :     0 reported,     0 suppressed
-Messages :     6 reported,     0 suppressed
+Messages :    10 reported,     0 suppressed
 
 

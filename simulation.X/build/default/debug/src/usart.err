@@ -1,6 +1,10 @@
-Message[301] C:\PROGRAM FILES (X86)\MICROCHIP\MPLABX\V5.30\MPASMX\P16F877.INC 34 : MESSAGE: (Processor-header file mismatch.  Verify selected processor.)
-Message[302] SRC\USART.ASM 39 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\USART.ASM 48 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\USART.ASM 56 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\USART.ASM 129 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\USART.ASM 136 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 44 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 53 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 61 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] SRC\USART.ASM 103 : Using default destination of 1 (file).
+Message[302] SRC\USART.ASM 183 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 202 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] SRC\USART.ASM 243 : Using default destination of 1 (file).
+Message[302] SRC\USART.ASM 248 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 250 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\USART.ASM 251 : Register in operand not in bank 0.  Ensure that bank bits are correct.

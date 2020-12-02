@@ -1,4 +1,4 @@
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  1
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -26,73 +26,92 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00010 ; ==============================================================================
                       00011 
                       00012     ; registers
-  0000                00013     EXTERN      W_TEMP, STATUS_TEMP
-                      00014      ; subprograms
-  0000                00015     EXTERN      RCIF_Callback, TXIF_Callback
-                      00016 
-                      00017 ; ==============================================================================
-                      00018 ;                        Interrupt service routine (ISR)
+  0000                00013     EXTERN      W_TEMP, STATUS_TEMP     ; these registers are shared across
+                      00014                                         ; all banks, thus no banksel instruction is
+                      00015                                         ; necessary to access them
+                      00016      ; subprograms
+  0000                00017     EXTERN      RCIF_Callback, TMR1IF_Callback, ADIF_Callback, TXIF_Callback
+                      00018 
                       00019 ; ==============================================================================
-                      00020 
-                      00021 ; ------------------------------------
-                      00022 ;       Sauvegarder le contexte
+                      00020 ;                        Interrupt service routine (ISR)
+                      00021 ; ==============================================================================
+                      00022 
                       00023 ; ------------------------------------
-                      00024 
-                      00025 ISR_FILE    CODE        0x004             ; interrupt vector location pour le PIC uC
-0004   00??           00026             movwf       W_TEMP            ; Copy W to TEMP register
-0005   0E03           00027             swapf       STATUS, W         ; Swap status to be saved into W
-0006   00??           00028             movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
-                      00029 
-                      00030 ; -----------------------------------
-                      00031 ;           Flag checking
+                      00024 ;       Sauvegarder le contexte
+                      00025 ; ------------------------------------
+                      00026 
+                      00027 ISR_FILE    CODE        0x004             ; interrupt vector location pour le PIC uC
+0004   00??           00028             movwf       W_TEMP            ; Copy W to TEMP register
+0005   0E03           00029             swapf       STATUS, W         ; Swap status to be saved into W
+0006   00??           00030             movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
+                      00031 
                       00032 ; -----------------------------------
-                      00033 
-                      00034 ; Did we receive a message via USART?
-0007                  00035 RCIF_status
-0007   1283 1303      00036     banksel       PIR1
-0009   1A8C           00037     btfsc         PIR1, RCIF
-000A   ???? ????      00038     PAGESEL       RCIF_Callback
-000C   2???           00039     call          RCIF_Callback
+                      00033 ;           Flag checking
+                      00034 ; -----------------------------------
+                      00035 
+                      00036 ; Although PIR1 is the same interrupt flag register for
+                      00037 ; all the peripherals used in this program, it's important to
+                      00038 ; still perform a banksel PIR1. This is to deal with situations where
+                      00039 ; the X_Callback subprogram causes the current bank to be changed
                       00040 
-                      00041 ; Did the Timer1 module overflow?
-000D                  00042 TMR1F_status
-000D   0000           00043     nop       ; NOT YET CODED
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  2
+                      00041 ; Did we receive a message via USART?
+0007                  00042 RCIF_status
+0007   1283 1303      00043     banksel       PIR1
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-                      00044 
-                      00045 ; Is the analog to digital conversion done?
-000E                  00046 ADIF_status
-000E   0000           00047     nop       ; NOT YET CODED
-                      00048 
-                      00049 ; Is the USART TX register ready for a new character?
-000F                  00050 TXIF_status
-000F   1283 1303      00051     banksel       PIR1
-0011   1A0C           00052     btfsc         PIR1, TXIF
-0012   ???? ????      00053     PAGESEL       TXIF_Callback
-0014   2???           00054     call          TXIF_Callback
-                      00055 
-                      00056 ; -------------------------------------
-                      00057 ;       Restaurer le contexte
-                      00058 ; -------------------------------------
-                      00059 
-0015   0E??           00060     swapf         STATUS_TEMP,W   ; Swap STATUS_TEMP register into W
-                      00061                                   ; (sets bank to original state)
-0016   0083           00062     movwf         STATUS          ; Move W into STATUS register
-0017   0E??           00063     swapf         W_TEMP,F        ; Swap W_TEMP
-0018   0E??           00064     swapf         W_TEMP,W        ; Swap W_TEMP into W
-0019   0009           00065     retfie                        ; return from interrupt
-                      00066 
-                      00067 
-                      00068 ; ----------------------------------
-                      00069 ;          end module code
-                      00070 ; ----------------------------------
+0009   1E8C           00044     btfss         PIR1, RCIF
+000A   ???? ???? 2??? 00045     lgoto          TMR1IF_status         ; check next flag if this flag is not set
+000D   ???? ???? 2??? 00046     lcall          RCIF_Callback
+                      00047 
+                      00048 ; Did the Timer1 module overflow?
+0010                  00049 TMR1IF_status
+0010   1283 1303      00050     banksel       PIR1
+0012   1C0C           00051     btfss         PIR1, TMR1IF          ; check next flag if this flag is not set
+0013   ???? ???? 2??? 00052     lgoto          ADIF_status
+                      00053 
+0016   100C           00054     bcf           PIR1, TMR1IF          ; clear flag
+0017   ???? ???? 2??? 00055     lcall          TMR1IF_Callback
+                      00056 
+                      00057 ; Is the analog to digital conversion done?
+001A                  00058 ADIF_status
+001A   1283 1303      00059     banksel       PIR1
+001C   1F0C           00060     btfss         PIR1, ADIF           ; check next flag if this flag is not set
+001D   ???? ???? 2??? 00061     lgoto          TXIF_status
+                      00062 
+0020   130C           00063     bcf           PIR1, ADIF           ; clear flag
+0021   ???? ???? 2??? 00064     lcall          ADIF_Callback
+                      00065 
+                      00066 ; Is the USART TX register ready for a new character?
+0024                  00067 TXIF_status
+0024   1283 1303      00068     banksel       PIR1
+0026   1E0C           00069     btfss         PIR1, TXIF
+0027   ???? ???? 2??? 00070     lgoto          INT_FLAG_CHECK_DONE  ; all flags checked
                       00071 
-                      00072     end
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  3
+002A   ???? ???? 2??? 00072     lcall          TXIF_Callback
+                      00073 
+                      00074 ; -------------------------------------
+                      00075 ;       Restaurer le contexte
+                      00076 ; -------------------------------------
+                      00077 
+002D                  00078 INT_FLAG_CHECK_DONE
+002D   0E??           00079     swapf         STATUS_TEMP,W   ; Swap STATUS_TEMP register into W
+                      00080                                   ; (sets bank to original state)
+002E   0083           00081     movwf         STATUS          ; Move W into STATUS register
+002F   0E??           00082     swapf         W_TEMP,F        ; Swap W_TEMP
+0030   0E??           00083     swapf         W_TEMP,W        ; Swap W_TEMP into W
+0031   0009           00084     retfie                        ; return from interrupt
+                      00085 
+                      00086 
+                      00087 ; ----------------------------------
+                      00088 ;          end module code
+                      00089 ; ----------------------------------
+                      00090 
+                      00091     end
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  3
 
 
 SYMBOL TABLE
@@ -109,7 +128,8 @@ ADDEN                             00000003
 ADFM                              00000007
 ADIE                              00000006
 ADIF                              00000006
-ADIF_status                       0000000E
+ADIF_Callback                     00000000
+ADIF_status                       0000001A
 ADON                              00000000
 ADRESH                            0000001E
 ADRESL                            0000009E
@@ -150,13 +170,13 @@ CKP                               00000004
 CREN                              00000004
 CSRC                              00000007
 D                                 00000005
-DATA_ADDRESS                      00000005
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  4
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  4
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+DATA_ADDRESS                      00000005
 DC                                00000001
 D_A                               00000005
 D_NOT_A                           00000005
@@ -188,6 +208,7 @@ INTCON                            0000000B
 INTE                              00000004
 INTEDG                            00000006
 INTF                              00000001
+INT_FLAG_CHECK_DONE               0000002D
 IRP                               00000007
 NOT_A                             00000005
 NOT_ADDRESS                       00000005
@@ -208,14 +229,14 @@ OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
 PCFG0                             00000000
-PCFG1                             00000001
-PCFG2                             00000002
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  5
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  5
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+PCFG1                             00000001
+PCFG2                             00000002
 PCFG3                             00000003
 PCL                               00000002
 PCLATH                            0000000A
@@ -267,14 +288,14 @@ RC7                               00000007
 RC8_9                             00000006
 RC9                               00000006
 RCD8                              00000000
-RCEN                              00000003
-RCIE                              00000005
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  6
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  6
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+RCEN                              00000003
+RCIE                              00000005
 RCIF                              00000005
 RCIF_Callback                     00000000
 RCIF_status                       00000007
@@ -326,14 +347,14 @@ T0CS                              00000005
 T0IE                              00000005
 T0IF                              00000002
 T0SE                              00000004
-T1CKPS0                           00000004
-T1CKPS1                           00000005
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  7
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  7
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+T1CKPS0                           00000004
+T1CKPS1                           00000005
 T1CON                             00000010
 T1INSYNC                          00000002
 T1OSCEN                           00000003
@@ -346,10 +367,11 @@ TMR0IE                            00000005
 TMR0IF                            00000002
 TMR1                              0000000E
 TMR1CS                            00000001
-TMR1F_status                      0000000D
 TMR1H                             0000000F
 TMR1IE                            00000000
 TMR1IF                            00000000
+TMR1IF_Callback                   00000000
+TMR1IF_status                     00000010
 TMR1L                             0000000E
 TMR1ON                            00000000
 TMR2                              00000011
@@ -384,15 +406,15 @@ TRISC3                            00000003
 TRISC4                            00000004
 TRISC5                            00000005
 TRISC6                            00000006
-TRISC7                            00000007
-TRISD                             00000088
-TRISD0                            00000000
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  8
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  8
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+TRISC7                            00000007
+TRISD                             00000088
+TRISD0                            00000000
 TRISD1                            00000001
 TRISD2                            00000002
 TRISD3                            00000003
@@ -413,7 +435,7 @@ TXEN                              00000005
 TXIE                              00000004
 TXIF                              00000004
 TXIF_Callback                     00000000
-TXIF_status                       0000000F
+TXIF_status                       00000024
 TXREG                             00000019
 TXSTA                             00000098
 UA                                00000001
@@ -443,15 +465,15 @@ _FOSC_HS                          00003FFE
 _FOSC_LP                          00003FFC
 _FOSC_XT                          00003FFD
 _HS_OSC                           00003FFE
-_IDLOC0                           00002000
-_IDLOC1                           00002001
-_IDLOC2                           00002002
-MPASM 5.86                           ISR.ASM   11-29-2020  22:11:35         PAGE  9
+MPASM 5.86                           ISR.ASM   12-2-2020  20:10:53         PAGE  9
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+_IDLOC0                           00002000
+_IDLOC1                           00002001
+_IDLOC2                           00002002
 _IDLOC3                           00002003
 _LP_OSC                           00003FFC
 _LVP_OFF                          00003F7F

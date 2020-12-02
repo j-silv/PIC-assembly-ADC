@@ -2,9 +2,8 @@
 
  -replace string message initializations with .idata section (using db directive
  for successive byte placements)
-	IDATA
+IDATA
 PTR_RESULT_MSG	DB	"U,D V\r\n"
-
 
  -constants indicating location for UNITY_OFFSET, DECIMAL_OFFSET (indexes
  for result msg string)
@@ -25,13 +24,12 @@ to the location pointed by the FSR
 needed to display message. -->
 	IDATA
 PTR_PROMPT_MSG DB "This is a test\r\n"
-Using "" adds a null terminated character to the string
+Using "" adds a null terminated character to the string (only if the string is an odd number of bytes)
 
 
-If using IDATA, the values in memory are reserved BUT the intialization values are not put 
+If using IDATA, the values in memory are reserved BUT the intialization values are not put
 into these registers. The initialization values are in program memory!
 The application code must then copy the initialization values from program memory to data memory at runtime.
-
 
 The contents of the PCLATH register are
 unchanged after a RETURN or RETFIE
@@ -39,9 +37,67 @@ instruction is executed. The user must
 rewrite the contents of the PCLATH register for any subsequent subroutine calls or
 GOTO instructions.
 
-There are the 14 bit core psuedoinstructions, which are effectively built-in predefined macros 
-(see MPASM/MPLINK user guide appendix A.6) LCALL and LGOTO, which simplify this by 
+There are the 14 bit core psuedoinstructions, which are effectively built-in predefined macros
+(see MPASM/MPLINK user guide appendix A.6) LCALL and LGOTO, which simplify this by
 generating the instructions for the PAGESEL for the destination and the CALL or GOTO.   e.g on a midrange PIC16
 
+ *************SIMULATION DEBUGGING****************************
+Issue with using lgoto after btfsc/btfss (conditional branching)
+Since lgoto is a psuedoinstruction comprised of multiple instructions, the bit test
+instruction will give undesirable results
 
-fix why its not  going to the appropiate goto calll
+Solution is to only use goto instructions (single instructions) after conditional
+branching tests, yet verify that there is no program memory page boundary crossing
+between goto labels in a particular object module
+
+It is also necessary to perform a PAGESEL macro instruction upon return from any
+subprogram called by a lcall psuedoinstruction, in case the subprogram is found
+in another program memory page. The PAGESEL ensures that any subsequent goto calls
+within that object module will branch to the correct label
+
+Also necessary in the ISR object module to temporarily save the context not
+only of the working reg and status reg, but also of the PCLATH register
+Before exiting the ISR, the PCALTH register should be stored to its original
+state once the ISR began, similarly to how W and STATUS are restored upon the
+ISR call
+
+***************MASTER CLEAR***********
+Work on how to enable MASTER CLR result with PICDEM2 development kit
+
+
+***********INTERRUPTS********
+Ensure that TXIE is RESET and only ENABLED once the ADIF is done with a conversion
+
+Bug -> because TXIF will always be high before a conversion starts,
+at the end of the ISR we will check this flag to see if we need to send a new
+character to the USART. We will thus end up sending a character even before
+we started the ADC and converted the value to ASCII
+
+Thus, simply disabling TXIE is not sufficient -> we have to disable the TRANSFER enable
+so that the TXIF becomes low and won't automatically start sending characters until
+the ADIF enables it and lets TXIF become HIGH and interrupt the processor
+
+Similar subtle bug with the TMR1 module... as soon as the TMR1 module is enabled,
+it will start overflowing and the overflow flag will not be cleared. Thus, as soon
+as an interrupt flag comes, the TMR1IF will be checked and the TMR1IF_Callback
+will be immediately executed. This is not what we want -> We want TMR1 to only be counting
+once we're in automatic mode, otherwise it should be disabled
+
+Thus the fixes are not only disabling the interrupt flags but also disabling the peripherals
+until we need them, so that the respective flags are not HIGH at the wrong
+times during the ISR flag checking
+
+For the TMR1 module, it would be also wise to CLEAR the current count, and
+reset it to zero, in case for example a automatic to manual mode is asked for. Once the user asks
+for an automatic mode , we want the count to reset from 0, not to wherever
+the count was interrupted from during the automatic to manual
+mode change
+
+Again, similiar issue with disabling the interrupt flag of the USART receive
+during message transfer. Although disabling the interrupt flag will of course
+no longer cause an interrupt to be fired by the USART, since the RCIF flag
+is checked during ISR routine, if the user sent a message during data transfer,
+the RCIF_Callback subprogram will be called. This could potentially lead to issues
+Of course, if we disable the USART reception completely during data transfer
+then the user's commands during data transfer (for example, if in automatic mode)
+will be lost and not properly received. Thus, a compromise must be made

@@ -42,10 +42,7 @@ ADIF_Callback
     GLOBAL      ADIF_Callback
 
     ; not sure if it's necessary to PAGESEL for subprograms within the same module
-    PAGESEL ADC_bin2dec
     lcall ADC_bin2dec      ; NOT YET CODED
-
-    PAGESEL dec2ASCII
     lcall dec2ASCII        ; NOT YET CODED
 
     bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
@@ -69,6 +66,9 @@ ADIF_Callback
     ; operations are performed instead
     banksel     PIE1
     bcf         PIE1, RCIE   ; Receive USART flag disable
+    banksel     TXSTA
+    bsf         TXSTA, TXEN  ; transmission is now enabled
+    banksel     PIE1
     bsf         PIE1, TXIE   ; USART TX interrupt flag enable
     return
 
@@ -85,7 +85,7 @@ Lire_Tension_Polling
            banksel  ADCON0
 start      bsf      ADCON0,GO            ; demarrage de la conversion
 non        btfsc    ADCON0,GO_NOT_DONE   ; attendre la fin de conversion
-           lgoto     non
+           goto     non
 oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort)
                                          ; de la conversion au reg de travail
            movwf    ADC_RESULT           ; sauvegarder resultat (tension) en memoire

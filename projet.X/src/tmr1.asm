@@ -29,8 +29,8 @@ TMR1_Config
     ; Prescaler = 1:8
     ; Oscillator shut off
     ; Internal clock (Fosc/4) used
-    ; Timer enabled
-    movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 1<<TMR1ON )
+    ; Timer is NOT initially enabled (has to be enabled by USART receive MODE_REQUEST by user)
+    movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 0<<TMR1ON )
     movwf       T1CON
     clrf        TMR1_V_COUNT   ; initaliser nombre d'overflow compte a 0
 
@@ -53,18 +53,20 @@ TEST_IF_SECOND_PASSED
                                    ; the TMR1 module has already overflowed
                                    ; this would mean that approximately 1 second has passed
     btfsc       STATUS, Z
-    lgoto SECOND_PASSED             ; this instruction is skipped if only 500 ms
+    goto SECOND_PASSED             ; this instruction is skipped if only 500 ms
                                    ; have occured
 INCR_TMR1_V_COUNT
     incf        TMR1_V_COUNT, F    ; 500 ms have passed
-    lgoto EXIT_CALLBACK
+    goto EXIT_TMR1IF_CALLBACK
 
 SECOND_PASSED
     clrf        TMR1_V_COUNT       ; reset overflow count register (0 ms have passed)
-    PAGESEL     START_ADC
-    lcall        START_ADC
+    lcall       START_ADC
+    PAGESEL     EXIT_TMR1IF_CALLBACK   ; not technically necessary to perform
+                                       ; a PAGESEL psuedoinstruction here since no subsequent
+                                       ; goto instructions are performed in this object module
 
-EXIT_CALLBACK             
+EXIT_TMR1IF_CALLBACK
     return
 
 ; ----------------------------------

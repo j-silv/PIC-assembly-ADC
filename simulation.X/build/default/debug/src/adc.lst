@@ -1,4 +1,4 @@
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  1
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  1
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
@@ -8,26 +8,25 @@ LOC  OBJECT CODE     LINE SOURCE TEXT
                       00002 ;                       ADC
                       00003 ; ----------------------------------------------
                       00004 
-                      00005         list p=16f877
-                      00006         include "p16f877.inc"
+                      00005     list p=16f877a
+                      00006     include "p16f877a.inc"
                       00001         LIST
                       00002 
                       00003 ;==========================================================================
                       00004 ; Build date : Oct 24 2019
-                      00005 ;  MPASM PIC16F877 processor include
+                      00005 ;  MPASM PIC16F877A processor include
                       00006 ; 
                       00007 ;  (c) Copyright 1999-2019 Microchip Technology, All rights reserved
                       00008 ;==========================================================================
                       00009 
-Message[301]: MESSAGE: (Processor-header file mismatch.  Verify selected processor.)
-                      00541         LIST
+                      00567         LIST
                       00007 
                       00008 ; ==============================================================================
                       00009 ;                          variables/constantes
                       00010 ; ==============================================================================
                       00011 
                       00012         ; registers
-  0000                00013         EXTERN       ADC_RESULT
+  0000                00013         EXTERN       ADC_RESULT, PTR_RESULT_MSG
                       00014 
                       00015 ; ==============================================================================
                       00016 ;                          peripheral configuration
@@ -35,7 +34,7 @@ Message[301]: MESSAGE: (Processor-header file mismatch.  Verify selected process
                       00018 ADC_FILE       CODE
 0000                  00019 ADC_Config
   0000                00020         GLOBAL       ADC_Config
-0000   1683 1303      00021             banksel      ADCON1
+0000   1683 1303      00021         banksel      ADCON1
                       00022         ; Left justify ,1 analog channel
                       00023         ; VDD and VSS references
 0002   300E           00024         movlw        ( 0<<ADFM | 1<<PCFG3 | 1<<PCFG2 | 1<<PCFG1 | 0<<PCFG0 )
@@ -57,63 +56,105 @@ Message[302]: Register in operand not in bank 0.  Ensure that bank bits are corr
                       00039 ; ----------------------------------
                       00040 
 0009                  00041 ADIF_Callback
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  2
+  0000                00042     GLOBAL      ADIF_Callback
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  2
 
 
 LOC  OBJECT CODE     LINE SOURCE TEXT
   VALUE
 
-  0000                00042     GLOBAL      ADIF_Callback
-0009   1683 1303      00043     banksel     PIE1
-Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-000B   160C           00044     bsf         PIE1, TXIE  ; USART TX flag enable
-000C   0008           00045     return
-                      00046 
-                      00047 ; ==============================================================================
-                      00048 ;                               Sub-programs
-                      00049 ; ==============================================================================
+                      00043 
+                      00044     ; not sure if it's necessary to PAGESEL for subprograms within the same module
+0009   ???? ???? 2??? 00045     lcall ADC_bin2dec      ; NOT YET CODED
+000C   ???? ???? 2??? 00046     lcall dec2ASCII        ; NOT YET CODED
+                      00047 
+000F   ????           00048     bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
+                      00049                               ; of the result message string
                       00050 
-                      00051 ; -------------------------------------
-                      00052 ;      Lire tension ADC (polling)
-                      00053 ; -------------------------------------
-                      00054 
-000D                  00055 Lire_Tension_Polling
-  0000                00056            GLOBAL   Lire_Tension_Polling
-000D   1283 1303      00057            banksel  ADCON0
-000F   151F           00058 start      bsf      ADCON0,GO            ; demarrage de la conversion
-0010   191F           00059 non        btfsc    ADCON0,GO_NOT_DONE   ; attendre la fin de conversion
-0011   2???           00060            goto     non
-0012   081E           00061 oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort)
-                      00062                                          ; de la conversion au reg de travail
-0013   00??           00063            movwf    ADC_RESULT           ; sauvegarder resultat (tension) en memoire
-0014   0008           00064            return
-                      00065 
-                      00066 ; -------------------------------------
-                      00067 ;   Start ADC conversion (interrupts)
-                      00068 ; -------------------------------------
-                      00069 
-0015                  00070 START_ADC
-  0000                00071            GLOBAL      START_ADC
-0015   1283 1303      00072            banksel     ADCON0
-0017   151F           00073            bsf         ADCON0, GO     ; demarrage de la conversion
-0018   1683 1303      00074            banksel     PIE1
+                      00051 
+                      00052     ; result[U_offset] = Unity   (register)
+                      00053     ; result[D_offset] = Decimal (register)
+                      00054     ; register[virgule_offset] = A',' (this will never change)
+                      00055     ; register[volt_offset] = A'V'    (this will never change)
+                      00056     ; etc....
+                      00057 
+                      00058     ; this is performed at the end, so that once the TXIF is raised, the FSR
+                      00059     ; and IRP bits (bankisel) are good to go
+0010   30??           00060     movlw PTR_RESULT_MSG      ; preload the FSR with the address to the
+0011   0084           00061     movwf FSR                 ; ADC result (this will be the next msg to send)
+                      00062 
+                      00063     ; a movlw then mowf  using bit-wise operations
+                      00064     ; cannot be done here, because the state of the TMR1IE is
+                      00065     ; not directly known (automatic/manual). this is why bsf/bsf
+                      00066     ; operations are performed instead
+0012   1683 1303      00067     banksel     PIE1
 Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
-001A   170C           00075            bsf         PIE1, ADIE     ; ADC conversion done interrupt flag enable
-001B   0008           00076            return
-                      00077 
-                      00078 ; ------------------------------------
-                      00079 ;           Transcodage ASCII
-                      00080 ; ------------------------------------
-                      00081 
-                      00082 ; NOT YET CODED
-                      00083 
-                      00084 
-                      00085 ; ----------------------------------
-                      00086 ;          end module code
-                      00087 ; ----------------------------------
-                      00088 
-                      00089     end
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  3
+0014   128C           00068     bcf         PIE1, RCIE   ; Receive USART flag disable
+0015   1683 1303      00069     banksel     TXSTA
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0017   1698           00070     bsf         TXSTA, TXEN  ; transmission is now enabled 
+0018   1683 1303      00071     banksel     PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+001A   160C           00072     bsf         PIE1, TXIE   ; USART TX interrupt flag enable
+001B   0008           00073     return
+                      00074 
+                      00075 ; ==============================================================================
+                      00076 ;                               Sub-programs
+                      00077 ; ==============================================================================
+                      00078 
+                      00079 ; -------------------------------------
+                      00080 ;      Lire tension ADC (polling)
+                      00081 ; -------------------------------------
+                      00082 
+001C                  00083 Lire_Tension_Polling
+  0000                00084            GLOBAL   Lire_Tension_Polling
+001C   1283 1303      00085            banksel  ADCON0
+001E   151F           00086 start      bsf      ADCON0,GO            ; demarrage de la conversion
+001F   191F           00087 non        btfsc    ADCON0,GO_NOT_DONE   ; attendre la fin de conversion
+0020   2???           00088            goto     non
+0021   081E           00089 oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort)
+                      00090                                          ; de la conversion au reg de travail
+0022   00??           00091            movwf    ADC_RESULT           ; sauvegarder resultat (tension) en memoire
+0023   0008           00092            return
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00093 
+                      00094 ; -------------------------------------
+                      00095 ;   Start ADC conversion (interrupts)
+                      00096 ; -------------------------------------
+                      00097 
+0024                  00098 START_ADC
+  0000                00099            GLOBAL      START_ADC
+0024   1283 1303      00100            banksel     ADCON0
+0026   151F           00101            bsf         ADCON0, GO     ; demarrage de la conversion
+0027   1683 1303      00102            banksel     PIE1
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0029   170C           00103            bsf         PIE1, ADIE     ; ADC conversion done interrupt flag enable
+002A   0008           00104            return
+                      00105 
+                      00106 ; ------------------------------------
+                      00107 ;           Transcodage ASCII
+                      00108 ; ------------------------------------
+                      00109 
+002B                  00110 ADC_bin2dec
+002B   0000           00111     nop
+002C   0008           00112     return
+                      00113 
+002D                  00114 dec2ASCII
+002D   0000           00115     nop
+002E   0008           00116     return
+                      00117 
+                      00118 
+                      00119 ; ----------------------------------
+                      00120 ;          end module code
+                      00121 ; ----------------------------------
+                      00122 
+                      00123     end
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  4
 
 
 SYMBOL TABLE
@@ -126,8 +167,10 @@ ADCON0                            0000001F
 ADCON1                            0000009F
 ADCS0                             00000006
 ADCS1                             00000007
+ADCS2                             00000006
 ADC_Config                        00000000
 ADC_RESULT                        00000000
+ADC_bin2dec                       0000002B
 ADDEN                             00000003
 ADFM                              00000007
 ADIE                              00000006
@@ -141,6 +184,10 @@ BCLIF                             00000003
 BF                                00000000
 BRGH                              00000002
 C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
 CCP1CON                           00000017
 CCP1IE                            00000002
 CCP1IF                            00000002
@@ -166,18 +213,33 @@ CCPR2                             0000001B
 CCPR2H                            0000001C
 CCPR2L                            0000001B
 CHS0                              00000003
-CHS1                              00000004
-CHS2                              00000005
-CKE                               00000006
-CKP                               00000004
-CREN                              00000004
-CSRC                              00000007
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  4
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  5
 
 
 SYMBOL TABLE
   LABEL                             VALUE 
 
+CHS1                              00000004
+CHS2                              00000005
+CIS                               00000003
+CKE                               00000006
+CKP                               00000004
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             0000009C
+CMIE                              00000006
+CMIF                              00000006
+CREN                              00000004
+CSRC                              00000007
+CVR0                              00000000
+CVR1                              00000001
+CVR2                              00000002
+CVR3                              00000003
+CVRCON                            0000009D
+CVREN                             00000007
+CVROE                             00000006
+CVRR                              00000005
 D                                 00000005
 DATA_ADDRESS                      00000005
 DC                                00000001
@@ -210,9 +272,15 @@ INDF                              00000000
 INTCON                            0000000B
 INTE                              00000004
 INTEDG                            00000006
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  6
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 INTF                              00000001
 IRP                               00000007
-Lire_Tension_Polling              0000000D
+Lire_Tension_Polling              0000001C
 NOT_A                             00000005
 NOT_ADDRESS                       00000005
 NOT_BO                            00000000
@@ -231,12 +299,6 @@ OBF                               00000006
 OERR                              00000001
 OPTION_REG                        00000081
 P                                 00000004
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  5
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 PCFG0                             00000000
 PCFG1                             00000001
 PCFG2                             00000002
@@ -263,11 +325,18 @@ PSA                               00000003
 PSPIE                             00000007
 PSPIF                             00000007
 PSPMODE                           00000004
+PTR_RESULT_MSG                    00000000
 R                                 00000002
 RA0                               00000000
 RA1                               00000001
 RA2                               00000002
 RA3                               00000003
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  7
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 RA4                               00000004
 RA5                               00000005
 RB0                               00000000
@@ -290,12 +359,6 @@ RC6                               00000006
 RC7                               00000007
 RC8_9                             00000006
 RC9                               00000006
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  6
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 RCD8                              00000000
 RCEN                              00000003
 RCIE                              00000005
@@ -327,6 +390,12 @@ SEN                               00000000
 SMP                               00000007
 SPBRG                             00000099
 SPEN                              00000007
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  8
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 SREN                              00000005
 SSPADD                            00000093
 SSPBUF                            00000013
@@ -341,7 +410,7 @@ SSPM2                             00000002
 SSPM3                             00000003
 SSPOV                             00000006
 SSPSTAT                           00000094
-START_ADC                         00000015
+START_ADC                         00000024
 STATUS                            00000003
 SYNC                              00000004
 T0CS                              00000005
@@ -349,12 +418,6 @@ T0IE                              00000005
 T0IF                              00000002
 T0SE                              00000004
 T1CKPS0                           00000004
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  7
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 T1CKPS1                           00000005
 T1CON                             00000010
 T1INSYNC                          00000002
@@ -386,6 +449,12 @@ TRISA0                            00000000
 TRISA1                            00000001
 TRISA2                            00000002
 TRISA3                            00000003
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE  9
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 TRISA4                            00000004
 TRISA5                            00000005
 TRISB                             00000086
@@ -408,12 +477,6 @@ TRISC6                            00000006
 TRISC7                            00000007
 TRISD                             00000088
 TRISD0                            00000000
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  8
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 TRISD1                            00000001
 TRISD2                            00000002
 TRISD3                            00000003
@@ -445,14 +508,19 @@ Z                                 00000002
 _BODEN_OFF                        00003FBF
 _BODEN_ON                         00003FFF
 _BOREN_OFF                        00003FBF
+MPASM 5.86                           ADC.ASM   12-3-2020  0:27:52         PAGE 10
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
 _BOREN_ON                         00003FFF
 _CONFIG                           00002007
 _CPD_OFF                          00003FFF
 _CPD_ON                           00003EFF
-_CP_ALL                           00000FCF
-_CP_HALF                          00001FDF
+_CP_ALL                           00001FFF
 _CP_OFF                           00003FFF
-_CP_UPPER_256                     00002FEF
+_CP_ON                            00001FFF
 _DEBUG_OFF                        00003FFF
 _DEBUG_ON                         000037FF
 _DEVID1                           00002006
@@ -467,12 +535,6 @@ _IDLOC2                           00002002
 _IDLOC3                           00002003
 _LP_OSC                           00003FFC
 _LVP_OFF                          00003F7F
-MPASM 5.86                           ADC.ASM   11-29-2020  22:22:28         PAGE  9
-
-
-SYMBOL TABLE
-  LABEL                             VALUE 
-
 _LVP_ON                           00003FFF
 _PWRTE_OFF                        00003FFF
 _PWRTE_ON                         00003FF7
@@ -481,20 +543,21 @@ _WDTE_OFF                         00003FFB
 _WDTE_ON                          00003FFF
 _WDT_OFF                          00003FFB
 _WDT_ON                           00003FFF
-_WRT_ENABLE_OFF                   00003DFF
-_WRT_ENABLE_ON                    00003FFF
-_WRT_OFF                          00003DFF
-_WRT_ON                           00003FFF
+_WRT_1FOURTH                      00003BFF
+_WRT_256                          00003DFF
+_WRT_HALF                         000039FF
+_WRT_OFF                          00003FFF
 _XT_OSC                           00003FFD
 __16F877A                         00000001
 __DEBUG                           
 __MPLAB_DEBUGGER_SIMULATOR        1
-non                               00000010
-oui                               00000012
-start                             0000000F
+dec2ASCII                         0000002D
+non                               0000001F
+oui                               00000021
+start                             0000001E
 
 Errors   :     0
 Warnings :     0 reported,     0 suppressed
-Messages :     4 reported,     0 suppressed
+Messages :     5 reported,     0 suppressed
 
 

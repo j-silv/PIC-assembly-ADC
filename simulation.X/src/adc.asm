@@ -2,15 +2,15 @@
 ;                       ADC
 ; ----------------------------------------------
 
-        list p=16f877
-        include "p16f877.inc"
+    list p=16f877a
+    include "p16f877a.inc"
 
 ; ==============================================================================
 ;                          variables/constantes
 ; ==============================================================================
 
         ; registers
-        EXTERN       ADC_RESULT
+        EXTERN       ADC_RESULT, PTR_RESULT_MSG
 
 ; ==============================================================================
 ;                          peripheral configuration
@@ -18,7 +18,7 @@
 ADC_FILE       CODE
 ADC_Config
         GLOBAL       ADC_Config
-            banksel      ADCON1
+        banksel      ADCON1
         ; Left justify ,1 analog channel
         ; VDD and VSS references
         movlw        ( 0<<ADFM | 1<<PCFG3 | 1<<PCFG2 | 1<<PCFG1 | 0<<PCFG0 )
@@ -40,8 +40,36 @@ ADC_Config
 
 ADIF_Callback
     GLOBAL      ADIF_Callback
+
+    ; not sure if it's necessary to PAGESEL for subprograms within the same module
+    lcall ADC_bin2dec      ; NOT YET CODED
+    lcall dec2ASCII        ; NOT YET CODED
+
+    bankisel PTR_RESULT_MSG   ; preselect the correct bank for indirect addressing
+                              ; of the result message string
+
+
+    ; result[U_offset] = Unity   (register)
+    ; result[D_offset] = Decimal (register)
+    ; register[virgule_offset] = A',' (this will never change)
+    ; register[volt_offset] = A'V'    (this will never change)
+    ; etc....
+
+    ; this is performed at the end, so that once the TXIF is raised, the FSR
+    ; and IRP bits (bankisel) are good to go
+    movlw PTR_RESULT_MSG      ; preload the FSR with the address to the
+    movwf FSR                 ; ADC result (this will be the next msg to send)
+
+    ; a movlw then mowf  using bit-wise operations
+    ; cannot be done here, because the state of the TMR1IE is
+    ; not directly known (automatic/manual). this is why bsf/bsf
+    ; operations are performed instead
     banksel     PIE1
-    bsf         PIE1, TXIE  ; USART TX flag enable
+    bcf         PIE1, RCIE   ; Receive USART flag disable
+    banksel     TXSTA
+    bsf         TXSTA, TXEN  ; transmission is now enabled 
+    banksel     PIE1
+    bsf         PIE1, TXIE   ; USART TX interrupt flag enable
     return
 
 ; ==============================================================================
@@ -79,7 +107,13 @@ START_ADC
 ;           Transcodage ASCII
 ; ------------------------------------
 
-; NOT YET CODED
+ADC_bin2dec
+    nop
+    return
+
+dec2ASCII
+    nop
+    return
 
 
 ; ----------------------------------

@@ -1,0 +1,353 @@
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;*********************************************************************
+                      00002 ;**    PIC16Cxx MPASM Initialized Data Startup File, Version 0.02   **
+                      00003 ;**    (c) Copyright 1997 Microchip Technology                      **
+                      00004 ;**                                                                 **
+                      00005 ;**     v0.02   092600  dg      Added logic to set IRP bit for INDF **
+                      00006 ;**                             to transfer data to correct bank.   **
+                      00007 ;*********************************************************************
+                      00008 
+                      00009 ;---------------- Environment variables --------------------;
+  0000                00010    VARIABLE  TABLE_OFFSET = 0   ;Offset for reading from table of entries
+                      00011 
+                      00012 ;------------------------- Equates -------------------------;
+                      00013 ;Register addresses
+  00000000            00014 INDF           equ    0x00
+  00000002            00015 PCL            equ    0x02
+  00000003            00016 STATUS         equ    0x03
+  00000004            00017 FSR            equ    0x04
+  0000000A            00018 PCLATH         equ    0x0A
+                      00019 
+                      00020 ;Bits within registers
+  00000002            00021 Z              equ    0x02
+  00000000            00022 C              equ    0x00
+  00000007            00023 IRP            equ    0x07
+                      00024 
+                      00025 ;----------------External variables and labels--------------;
+  0000                00026    EXTERN  _cinit     ;Start of const. data table
+                      00027 
+                      00028 ;-------------------------------------------------------------;
+                      00029 ; COPY_ROM_WORD_TO_RAM                                        ;
+                      00030 ;                                                             ;
+                      00031 ;    Reads a 16-bit word stored in program memory as a pair of;
+                      00032 ; retlw kk  instructions and stores the word in data memory   ;
+                      00033 ; (low byte first). The macro also handles all paging and/or  ;
+                      00034 ; bank switching involved.                                    ;
+                      00035 ;                                                             ;
+                      00036 ; Arguments:                                                  ;
+                      00037 ;            RomAddr    Source address in program memory.     ;
+                      00038 ;            RamAddr    Destination address in data memory.   ;
+                      00039 ;-------------------------------------------------------------;
+                      00040 COPY_ROM_WORD_TO_RAM  MACRO  RomAddr, RamAddr
+                      00041 
+                      00042         PAGESEL  RomAddr        ;   Switch to correct ROM page,
+                      00043         call     RomAddr        ; then read the low byte
+                      00044 
+                      00045         BANKSEL  RamAddr        ;   Switch to correct RAM bank,
+                      00046         movwf    RamAddr        ; then write the low byte
+                      00047 
+                      00048         call     1 + RomAddr    ;   Read the high byte from ROM
+                      00049         movwf    1 + RamAddr    ; and store it in RAM
+                      00050 
+                      00051                       ENDM
+                      00052 ;-------------------------------------------------------------;
+                      00053 
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00054 ;***********************************************************;
+                      00055 VARIABLES   UDATA_OVR
+                      00056 ;-----------------------------------------------------------;
+                      00057 ; Data used for copying const. data into RAM
+                      00058 ;
+                      00059 ; Note:  All the locations in this section can be reused
+                      00060 ;        by user programs. This can be done by declaring
+                      00061 ;        a section with the same name and attribute:
+                      00062 ;        i.e.
+                      00063 ;             VARIABLES  UDATA_OVER          (in MPASM)
+                      00064 ;        or
+                      00065 ;            #pragma udata overlay VARIABLES (in MPLAB-C)
+                      00066 ;-----------------------------------------------------------;
+0000                  00067 num_init             RES   2  ;Number of entries in init table
+0002                  00068 init_entry_from_addr RES   2  ;ROM address to copy const. data from
+0004                  00069 init_entry_to_addr   RES   2  ;RAM address to copy const. data to
+0006                  00070 init_entry_size      RES   2  ;Number of bytes in each init.section
+0008                  00071 init_entry_index     RES   2  ;Used to index through array of init. data
+                      00072 ;-----------------------------------------------------------;
+                      00073 
+                      00074 ; ****************************************************************
+                      00075 _copy_idata_sec    CODE
+                      00076 
+                      00077 ; ****************************************************************
+                      00078 ; * Copy initialized data from ROM to RAM                        *
+                      00079 ; ****************************************************************
+                      00080 ;
+                      00081 ;   The values to be stored in initialized data are stored in
+                      00082 ; program memory sections. The actual initialized variables are
+                      00083 ; stored in data memory in a section defined by the IDATA directive
+                      00084 ; in MPASM or automatically defined by MPLAB-C. There are 'num_init'
+                      00085 ; such sections in a program. The table below has an entry for each
+                      00086 ; section. Each entry contains the starting address in program memory
+                      00087 ; where the data is to be copied from, the starting address in data
+                      00088 ; memory where the data is to be copied, and the number of bytes to copy.
+                      00089 ;   The startup code below walks the table, reading those starting
+                      00090 ; addresses and counts, and copies the data from program to data memory.
+                      00091 ;
+                      00092 ;
+                      00093 ;             +============================+
+                      00094 ;  _cinit     | num_init (low)             |
+                      00095 ;             +----------------------------+
+                      00096 ;             | num_init (high)            |
+                      00097 ;             +============================+
+                      00098 ;             | init_entry_from_addr (low) |       IDATA (0)
+                      00099 ;             +----------------------------+
+                      00100 ;             | init_entry_from_addr (high)|
+                      00101 ;             +----------------------------+
+                      00102 ;             | init_entry_to_addr (low)   |
+                      00103 ;             +----------------------------+
+                      00104 ;             | init_entry_to_addr (high)  |
+                      00105 ;             +----------------------------+
+                      00106 ;             | init_entry_size   (low)    |
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00107 ;             +----------------------------+
+                      00108 ;             | init_entry_size   (high)   |
+                      00109 ;             +============================+
+                      00110 ;             |            .               |           .
+                      00111 ;                          .                           .
+                      00112 ;             |                            |
+                      00113 ;             +============================+
+                      00114 ;             | init_entry_from_addr (low) |       IDATA (num_init - 1)
+                      00115 ;             +----------------------------+
+                      00116 ;             | init_entry_from_addr (high)|
+                      00117 ;             +----------------------------+
+                      00118 ;             | init_entry_to_addr (low)   |
+                      00119 ;             +----------------------------+
+                      00120 ;             | init_entry_to_addr (high)  |
+                      00121 ;             +----------------------------+
+                      00122 ;             | init_entry_size   (low)    |
+                      00123 ;             +----------------------------+
+                      00124 ;             | init_entry_size   (high)   |
+                      00125 ;             +============================+
+                      00126 
+                      00127 ;   Start of code that copies initialization
+                      00128 ; data from program to data memory
+0000                  00129 copy_init_data
+                      00130 
+                      00131 ;   First read the count of entries (_cinit)
+                      00132         COPY_ROM_WORD_TO_RAM   _cinit, num_init
+                          M 
+0000   ???? ????          M         PAGESEL  _cinit         ;   Switch to correct ROM page,
+0002   2???               M         call     _cinit         ; then read the low byte
+                          M 
+0003   ???? ????          M         BANKSEL  num_init       ;   Switch to correct RAM bank,
+0005   00??               M         movwf    num_init       ; then write the low byte
+                          M 
+0006   2???               M         call     1 + _cinit     ;   Read the high byte from ROM
+0007   00??               M         movwf    1 + num_init   ; and store it in RAM
+                          M 
+Warning[207]: Found label after column 1. (TABLE_OFFSET)
+  00000002            00133         TABLE_OFFSET = TABLE_OFFSET + 2
+                      00134 
+                      00135 ;   For (num_init) do copy data for each initialization
+                      00136 ; entry. Decrement 'num_init' every time and when it
+                      00137 ; reaches 0 we are done copying initialization data
+                      00138 ;
+0008                  00139 _loop_num_init
+0008   ???? ????      00140         BANKSEL num_init
+000A   08??           00141         movf    num_init, W
+000B   04??           00142         iorwf   num_init+1, 0
+000C   1D03           00143         btfss   STATUS, Z            ;   If num_init is not down to 0,
+000D   2???           00144         goto    _copy_init_sec       ; then we have more sections to copy,
+000E   2???           00145         goto    _end_copy_init_data  ; otherwise, we're done copying data.
+                      00146 
+                      00147 ;   For a single initialization section, read the
+                      00148 ; starting addresses in both program and data memory,
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00149 ; as well as the number of bytes to copy.
+                      00150 ;
+000F                  00151 _copy_init_sec
+                      00152         COPY_ROM_WORD_TO_RAM   TABLE_OFFSET + _cinit, init_entry_from_addr
+                          M 
+000F   ???? ????          M         PAGESEL  TABLE_OFFSET + _cinit ;   Switch to correct ROM page,
+0011   2???               M         call     TABLE_OFFSET + _cinit ; then read the low byte
+                          M 
+0012   ???? ????          M         BANKSEL  init_entry_from_addr ;   Switch to correct RAM bank,
+0014   00??               M         movwf    init_entry_from_addr ; then write the low byte
+                          M 
+0015   2???               M         call     1 + TABLE_OFFSET + _cinit ;   Read the high byte from ROM
+0016   00??               M         movwf    1 + init_entry_from_addr ; and store it in RAM
+                          M 
+Warning[207]: Found label after column 1. (TABLE_OFFSET)
+  00000004            00153         TABLE_OFFSET = TABLE_OFFSET + 2   ;Increment by 2 since it's a word
+                      00154         COPY_ROM_WORD_TO_RAM   TABLE_OFFSET + _cinit, init_entry_to_addr
+                          M 
+0017   ???? ????          M         PAGESEL  TABLE_OFFSET + _cinit ;   Switch to correct ROM page,
+0019   2???               M         call     TABLE_OFFSET + _cinit ; then read the low byte
+                          M 
+001A   ???? ????          M         BANKSEL  init_entry_to_addr ;   Switch to correct RAM bank,
+001C   00??               M         movwf    init_entry_to_addr ; then write the low byte
+                          M 
+001D   2???               M         call     1 + TABLE_OFFSET + _cinit ;   Read the high byte from ROM
+001E   00??               M         movwf    1 + init_entry_to_addr ; and store it in RAM
+                          M 
+Warning[207]: Found label after column 1. (TABLE_OFFSET)
+  00000006            00155         TABLE_OFFSET = TABLE_OFFSET + 2   ;Increment by 2 since it's a word
+                      00156         COPY_ROM_WORD_TO_RAM   TABLE_OFFSET + _cinit, init_entry_size
+                          M 
+001F   ???? ????          M         PAGESEL  TABLE_OFFSET + _cinit ;   Switch to correct ROM page,
+0021   2???               M         call     TABLE_OFFSET + _cinit ; then read the low byte
+                          M 
+0022   ???? ????          M         BANKSEL  init_entry_size ;   Switch to correct RAM bank,
+0024   00??               M         movwf    init_entry_size ; then write the low byte
+                          M 
+0025   2???               M         call     1 + TABLE_OFFSET + _cinit ;   Read the high byte from ROM
+0026   00??               M         movwf    1 + init_entry_size ; and store it in RAM
+                          M 
+Warning[207]: Found label after column 1. (TABLE_OFFSET)
+  00000008            00157         TABLE_OFFSET = TABLE_OFFSET + 2   ;Increment by 2 since it's a word
+                      00158 
+                      00159 ;    Check 'init_entry_size'. If it's 0, then go
+                      00160 ; to the next entry in the table (if it exits).
+                      00161 ; If 'init_entry_size' is non-zero, then go ahead
+                      00162 ; and copy the bytes.
+                      00163 ;
+0027                  00164 _start_copying_data
+0027   ???? ????      00165         BANKSEL init_entry_size
+0029   08??           00166         movf    init_entry_size, W
+002A   04??           00167         iorwf   init_entry_size+1, W
+002B   1903           00168         btfsc   STATUS, Z
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+002C   2???           00169         goto    _dec_num_init
+                      00170 
+                      00171 ;   Set up the destination address for the data in the FSR so
+                      00172 ; we are prepared to copy data using indirect addressing
+002D   ???? ????      00173         BANKSEL init_entry_to_addr
+002F   08??           00174         movf    init_entry_to_addr, W
+0030   0084           00175         movwf   FSR
+                      00176 
+                      00177 ;   Read a single data byte by doing a long jump
+                      00178 ; into the section in program memory
+0031   2???           00179         goto   _Dummy2
+0032                  00180 _Dummy1
+0032   08??           00181         movf   init_entry_from_addr+1, W
+0033   008A           00182         movwf  PCLATH
+0034   08??           00183         movf   init_entry_from_addr, W
+0035   0082           00184         movwf  PCL
+0036                  00185 _Dummy2
+0036   2???           00186         call   _Dummy1                    ;Puts return address on stack
+                      00187 
+                      00188 ;   Now write the data to RAM using indirect addressing
+0037   1383           00189         bcf     STATUS, IRP               ;Clear the IRP bit.
+0038   08??           00190         movf   init_entry_to_addr+1, 1    ;Check if upper portion of
+0039   1D03           00191         btfss   STATUS, Z                 ;address is non-zero. If so, then
+003A   1783           00192         bsf     STATUS, IRP               ;set the IRP bit.
+003B   0080           00193         movwf   INDF
+                      00194 
+                      00195 ;  After copying one entry we need to:
+                      00196 ;    1. Increment the program memory (source) address
+                      00197 ;    2. Increment the data memory (destination) address
+                      00198 ;    3. Decrement the init_entry_size
+                      00199 
+003C   ???? ????      00200         BANKSEL init_entry_from_addr
+003E   0A??           00201         incf    init_entry_from_addr,1
+003F   1803           00202         btfsc   STATUS, C
+0040   0A??           00203         incf    init_entry_from_addr+1,1
+                      00204 
+0041   ???? ????      00205         BANKSEL init_entry_to_addr        ;Increment the address
+0043   0A??           00206         incf    init_entry_to_addr,1      ;_init_entry_to_addr
+0044   1803           00207         btfsc   STATUS, C
+0045   0A??           00208         incf    init_entry_to_addr+1,1
+                      00209 
+0046   ???? ????      00210         BANKSEL init_entry_size           ;Decrement the count
+0048   08??           00211         movf    init_entry_size,1         ;_init_entry_size
+0049   1903           00212         btfsc   STATUS, Z
+004A   03??           00213         decf    init_entry_size+1,1
+004B   03??           00214         decf    init_entry_size,1
+                      00215 
+004C   2???           00216         goto _start_copying_data          ;Back to do another section
+                      00217 
+004D                  00218 _dec_num_init
+004D   ???? ????      00219         BANKSEL num_init
+004F   08??           00220         movf    num_init,1
+0050   1903           00221         btfsc   STATUS, Z
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0051   03??           00222         decf    num_init+1,1
+0052   03??           00223         decf    num_init, 1
+                      00224 
+0053   2???           00225         goto  _loop_num_init
+                      00226 
+                      00227 
+0054                  00228 _end_copy_init_data           ;We're done copying initialized data
+                      00229 
+0054   0008           00230    return
+                      00231 
+                      00232 ;   Must declare copy_init_data as GLOBAL to be able
+                      00233 ; to call it from other assembly modules
+  0000                00234    GLOBAL   copy_init_data
+                      00235 
+                      00236    END
+MPASM 5.86                       IDASM16.ASM   12-2-2020  20:10:53         PAGE  7
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+C                                 00000000
+COPY_ROM_WORD_TO_RAM              
+FSR                               00000004
+INDF                              00000000
+IRP                               00000007
+PCL                               00000002
+PCLATH                            0000000A
+STATUS                            00000003
+TABLE_OFFSET                      00000008
+Z                                 00000002
+_Dummy1                           00000032
+_Dummy2                           00000036
+__16F877                          00000001
+_cinit                            00000000
+_copy_init_sec                    0000000F
+_dec_num_init                     0000004D
+_end_copy_init_data               00000054
+_loop_num_init                    00000008
+_start_copying_data               00000027
+copy_init_data                    00000000
+init_entry_from_addr              00000002
+init_entry_index                  00000008
+init_entry_size                   00000006
+init_entry_to_addr                00000004
+num_init                          00000000
+
+Errors   :     0
+Warnings :     4 reported,     0 suppressed
+Messages :     0 reported,     0 suppressed
+
+

@@ -1,7 +1,1 @@
-Message[305] SRC\MAIN.ASM 99 : Using default destination of 1 (file).
-Message[305] SRC\MAIN.ASM 103 : Using default destination of 1 (file).
-Message[305] SRC\MAIN.ASM 107 : Using default destination of 1 (file).
-Message[305] SRC\MAIN.ASM 111 : Using default destination of 1 (file).
-Message[305] SRC\MAIN.ASM 115 : Using default destination of 1 (file).
-Message[305] SRC\MAIN.ASM 136 : Using default destination of 1 (file).
-Message[305] SRC\MAIN.ASM 137 : Using default destination of 1 (file).
+Message[302] SRC\MAIN.ASM 112 : Register in operand not in bank 0.  Ensure that bank bits are correct.
