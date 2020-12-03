@@ -13,16 +13,11 @@
       ; subprograms
       EXTERN    START_ADC
 
-                constant        X_VAL_SPBRG = D'25'     ; prescaler valeur pour le baud-rate generateur
-
-                ; UDATA  0x21
-; PTR_PROMPT_MSG  RES 1   ; pointe a msg prompt pour l'utilisateur "Test\r\n"
-; PTR_RESULT_MSG  RES 1   ; pointe a ADC result qu'on va envoyer via mode auto/manual
+      constant  X_VAL_SPBRG = D'25'     ; prescaler valeur pour le baud-rate generateur
 
 USART_MSGS      IDATA
 PTR_PROMPT_MSG  DB  "TEST\r\n\0"    ; pointe a msg prompt pour l'utilisateur "Test\r\n"
 PTR_RESULT_MSG  DB  "X,X V\r\n\0"   ; pointe a ADC result qu'on va envoyer via mode auto/manual
-
 
       ; export labels to other modules
       GLOBAL     PTR_PROMPT_MSG, PTR_RESULT_MSG
@@ -65,7 +60,6 @@ USART_Config
     movwf       RCSTA
 
     return
-
 
 ; ==============================================================================
 ;               Print prompt message to PC terminal (polling)

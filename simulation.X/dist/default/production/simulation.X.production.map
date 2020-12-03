@@ -1,5 +1,5 @@
 MPLINK 5.09, LINKER
-Linker Map File - Created Thu Dec 03 00:31:18 2020
+Linker Map File - Created Thu Dec 03 21:33:54 2020
 
                                  Section Info
                   Section       Type    Address   Location Size(Bytes)
@@ -9,55 +9,57 @@ Linker Map File - Created Thu Dec 03 00:31:18 2020
                    .cinit    romdata   0x000036    program   0x000010
                USART_FILE       code   0x00003e    program   0x0000e4
           _copy_idata_sec       code   0x0000b0    program   0x0000aa
-                 ADC_FILE       code   0x000105    program   0x00005e
-                MAIN_FILE       code   0x000134    program   0x000052
-                TMR1_FILE       code   0x00015d    program   0x000028
-             USART_MSGS_i    romdata   0x000171    program   0x00001e
+                 ADC_FILE       code   0x000105    program   0x000086
+                MAIN_FILE       code   0x000148    program   0x000052
+                TMR1_FILE       code   0x000171    program   0x000028
+             USART_MSGS_i    romdata   0x000185    program   0x00001e
 .config_2007_BUILD/DEFAULT/PRODUCTION/SRC/MAI       code   0x002007    program   0x000002
                USART_MSGS      idata   0x000020       data   0x00000f
                 VARIABLES      udata   0x00002f       data   0x00000a
-              SHARED_REGS      udata   0x000070       data   0x000007
+              SHARED_REGS      udata   0x000070       data   0x000009
 
 
 
                               Program Memory Usage 
                                Start         End      
                            ---------   ---------      
-                            0x000000    0x00017f      
+                            0x000000    0x000193      
                             0x002007    0x002007      
-            385 out of 8454 program addresses used, program memory utilization is 4%
+            405 out of 8454 program addresses used, program memory utilization is 4%
 
 
 
                               Symbols - Sorted by Name
                      Name    Address   Location    Storage File                     
                 ---------  ---------  ---------  --------- ---------                
-         ADC_ADIF_DISABLE   0x00014d    program     static src\main.asm             
+         ADC_ADIF_DISABLE   0x000161    program     static src\main.asm             
+  ADC_BIN_TO_DEC_TO_ASCII   0x000133    program     extern src\adc.asm              
                ADC_Config   0x000105    program     extern src\adc.asm              
-              ADC_bin2dec   0x000130    program     static src\adc.asm              
             ADIF_Callback   0x00010e    program     extern src\adc.asm              
               ADIF_status   0x00001c    program     static src\isr.asm              
-         CLR_PERIPH_FLAGS   0x000146    program     static src\main.asm             
+  CALCULATE_DECIMAL_PLACE   0x000141    program     static src\adc.asm              
+    CALCULATE_UNITY_PLACE   0x00013a    program     static src\adc.asm              
+         CLR_PERIPH_FLAGS   0x00015a    program     static src\main.asm             
        CONVERSION_REQUEST   0x000093    program     static src\usart.asm            
        EXIT_RCIF_CALLBACK   0x00009c    program     static src\usart.asm            
-     EXIT_TMR1IF_CALLBACK   0x000170    program     static src\tmr1.asm             
+     EXIT_TMR1IF_CALLBACK   0x000184    program     static src\tmr1.asm             
        EXIT_TXIF_CALLBACK   0x0000af    program     static src\usart.asm            
-        GLOBAL_INT_ENABLE   0x000156    program     static src\main.asm             
-        INCR_TMR1_V_COUNT   0x000168    program     static src\tmr1.asm             
+        GLOBAL_INT_ENABLE   0x00016a    program     static src\main.asm             
+        INCR_TMR1_V_COUNT   0x00017c    program     static src\tmr1.asm             
       INT_FLAG_CHECK_DONE   0x00002f    program     static src\isr.asm              
-     Lire_Tension_Polling   0x000121    program     extern src\adc.asm              
-              MAIN_Config   0x000134    program     static src\main.asm             
-        PERIPH_INT_ENABLE   0x000150    program     static src\main.asm             
+     Lire_Tension_Polling   0x000124    program     extern src\adc.asm              
+              MAIN_Config   0x000148    program     static src\main.asm             
+        PERIPH_INT_ENABLE   0x000164    program     static src\main.asm             
          PRINT_PROMPT_MSG   0x00004f    program     extern src\usart.asm            
           PROMPT_MSG_SENT   0x00005e    program     static src\usart.asm            
             RCIF_Callback   0x000062    program     extern src\usart.asm            
               RCIF_status   0x000009    program     static src\isr.asm              
           RESULT_MSG_SENT   0x0000a8    program     static src\usart.asm            
-            SECOND_PASSED   0x00016a    program     static src\tmr1.asm             
+            SECOND_PASSED   0x00017e    program     static src\tmr1.asm             
             SEND_NEW_BYTE   0x0000a2    program     static src\usart.asm            
        SET_AUTOMATIC_MODE   0x00007e    program     static src\usart.asm            
           SET_MANUAL_MODE   0x00008a    program     static src\usart.asm            
-                START_ADC   0x000129    program     extern src\adc.asm              
+                START_ADC   0x00012c    program     extern src\adc.asm              
    TEST_END_OF_PROMPT_MSG   0x000054    program     static src\usart.asm            
    TEST_END_OF_RESULT_MSG   0x00009e    program     static src\usart.asm            
           TEST_IF_A_LOWER   0x00006a    program     static src\usart.asm            
@@ -66,16 +68,16 @@ Linker Map File - Created Thu Dec 03 00:31:18 2020
           TEST_IF_D_UPPER   0x000076    program     static src\usart.asm            
           TEST_IF_R_LOWER   0x000072    program     static src\usart.asm            
           TEST_IF_R_UPPER   0x00006e    program     static src\usart.asm            
-    TEST_IF_SECOND_PASSED   0x000164    program     static src\tmr1.asm             
+    TEST_IF_SECOND_PASSED   0x000178    program     static src\tmr1.asm             
                 TEST_TXIF   0x000058    program     static src\usart.asm            
-          TMR1IF_Callback   0x000162    program     extern src\tmr1.asm             
+          TMR1IF_Callback   0x000176    program     extern src\tmr1.asm             
             TMR1IF_status   0x000012    program     static src\isr.asm              
-              TMR1_Config   0x00015d    program     extern src\tmr1.asm             
+              TMR1_Config   0x000171    program     extern src\tmr1.asm             
             TXIF_Callback   0x00009d    program     extern src\usart.asm            
               TXIF_status   0x000026    program     static src\isr.asm              
              USART_Config   0x00003e    program     extern src\usart.asm            
-        USART_RCIF_ENABLE   0x000153    program     static src\main.asm             
-       USART_TXIF_DISABLE   0x00014a    program     static src\main.asm             
+        USART_RCIF_ENABLE   0x000167    program     static src\main.asm             
+       USART_TXIF_DISABLE   0x00015e    program     static src\main.asm             
                   _Dummy1   0x0000e2    program     static src\IDASM16.ASM          
                   _Dummy2   0x0000e6    program     static src\IDASM16.ASM          
            _copy_init_sec   0x0000bf    program     static src\IDASM16.ASM          
@@ -84,19 +86,20 @@ Linker Map File - Created Thu Dec 03 00:31:18 2020
            _loop_num_init   0x0000b8    program     static src\IDASM16.ASM          
       _start_copying_data   0x0000d7    program     static src\IDASM16.ASM          
            copy_init_data   0x0000b0    program     extern src\IDASM16.ASM          
-                dec2ASCII   0x000132    program     static src\adc.asm              
-                     main   0x000159    program     static src\main.asm             
-                      non   0x000124    program     static src\adc.asm              
-                      oui   0x000126    program     static src\adc.asm              
-                    start   0x000123    program     static src\adc.asm              
-               ADC_RESULT   0x000073       data     extern src\main.asm             
-             CURRENT_MODE   0x000075       data     extern src\main.asm             
-             MODE_REQUEST   0x000076       data     extern src\main.asm             
+                     main   0x00016d    program     static src\main.asm             
+                      non   0x000127    program     static src\adc.asm              
+                      oui   0x000129    program     static src\adc.asm              
+                    start   0x000126    program     static src\adc.asm              
+        ADC_RESULT_BINARY   0x000073       data     extern src\main.asm             
+       ADC_RESULT_DECIMAL   0x000075       data     extern src\main.asm             
+         ADC_RESULT_UNITY   0x000074       data     extern src\main.asm             
+             CURRENT_MODE   0x000077       data     extern src\main.asm             
+             MODE_REQUEST   0x000078       data     extern src\main.asm             
               PCLATH_TEMP   0x000072       data     extern src\main.asm             
            PTR_PROMPT_MSG   0x000020       data     extern src\usart.asm            
            PTR_RESULT_MSG   0x000027       data     extern src\usart.asm            
               STATUS_TEMP   0x000071       data     extern src\main.asm             
-             TMR1_V_COUNT   0x000074       data     extern src\main.asm             
+             TMR1_V_COUNT   0x000076       data     extern src\main.asm             
                    W_TEMP   0x000070       data     extern src\main.asm             
      init_entry_from_addr   0x000031       data     static src\IDASM16.ASM          
          init_entry_index   0x000037       data     static src\IDASM16.ASM          
@@ -145,27 +148,28 @@ Linker Map File - Created Thu Dec 03 00:31:18 2020
       _end_copy_init_data   0x000104    program     static src\IDASM16.ASM          
                ADC_Config   0x000105    program     extern src\adc.asm              
             ADIF_Callback   0x00010e    program     extern src\adc.asm              
-     Lire_Tension_Polling   0x000121    program     extern src\adc.asm              
-                    start   0x000123    program     static src\adc.asm              
-                      non   0x000124    program     static src\adc.asm              
-                      oui   0x000126    program     static src\adc.asm              
-                START_ADC   0x000129    program     extern src\adc.asm              
-              ADC_bin2dec   0x000130    program     static src\adc.asm              
-                dec2ASCII   0x000132    program     static src\adc.asm              
-              MAIN_Config   0x000134    program     static src\main.asm             
-         CLR_PERIPH_FLAGS   0x000146    program     static src\main.asm             
-       USART_TXIF_DISABLE   0x00014a    program     static src\main.asm             
-         ADC_ADIF_DISABLE   0x00014d    program     static src\main.asm             
-        PERIPH_INT_ENABLE   0x000150    program     static src\main.asm             
-        USART_RCIF_ENABLE   0x000153    program     static src\main.asm             
-        GLOBAL_INT_ENABLE   0x000156    program     static src\main.asm             
-                     main   0x000159    program     static src\main.asm             
-              TMR1_Config   0x00015d    program     extern src\tmr1.asm             
-          TMR1IF_Callback   0x000162    program     extern src\tmr1.asm             
-    TEST_IF_SECOND_PASSED   0x000164    program     static src\tmr1.asm             
-        INCR_TMR1_V_COUNT   0x000168    program     static src\tmr1.asm             
-            SECOND_PASSED   0x00016a    program     static src\tmr1.asm             
-     EXIT_TMR1IF_CALLBACK   0x000170    program     static src\tmr1.asm             
+     Lire_Tension_Polling   0x000124    program     extern src\adc.asm              
+                    start   0x000126    program     static src\adc.asm              
+                      non   0x000127    program     static src\adc.asm              
+                      oui   0x000129    program     static src\adc.asm              
+                START_ADC   0x00012c    program     extern src\adc.asm              
+  ADC_BIN_TO_DEC_TO_ASCII   0x000133    program     extern src\adc.asm              
+    CALCULATE_UNITY_PLACE   0x00013a    program     static src\adc.asm              
+  CALCULATE_DECIMAL_PLACE   0x000141    program     static src\adc.asm              
+              MAIN_Config   0x000148    program     static src\main.asm             
+         CLR_PERIPH_FLAGS   0x00015a    program     static src\main.asm             
+       USART_TXIF_DISABLE   0x00015e    program     static src\main.asm             
+         ADC_ADIF_DISABLE   0x000161    program     static src\main.asm             
+        PERIPH_INT_ENABLE   0x000164    program     static src\main.asm             
+        USART_RCIF_ENABLE   0x000167    program     static src\main.asm             
+        GLOBAL_INT_ENABLE   0x00016a    program     static src\main.asm             
+                     main   0x00016d    program     static src\main.asm             
+              TMR1_Config   0x000171    program     extern src\tmr1.asm             
+          TMR1IF_Callback   0x000176    program     extern src\tmr1.asm             
+    TEST_IF_SECOND_PASSED   0x000178    program     static src\tmr1.asm             
+        INCR_TMR1_V_COUNT   0x00017c    program     static src\tmr1.asm             
+            SECOND_PASSED   0x00017e    program     static src\tmr1.asm             
+     EXIT_TMR1IF_CALLBACK   0x000184    program     static src\tmr1.asm             
            PTR_PROMPT_MSG   0x000020       data     extern src\usart.asm            
            PTR_RESULT_MSG   0x000027       data     extern src\usart.asm            
                  num_init   0x00002f       data     static src\IDASM16.ASM          
@@ -176,9 +180,11 @@ Linker Map File - Created Thu Dec 03 00:31:18 2020
                    W_TEMP   0x000070       data     extern src\main.asm             
               STATUS_TEMP   0x000071       data     extern src\main.asm             
               PCLATH_TEMP   0x000072       data     extern src\main.asm             
-               ADC_RESULT   0x000073       data     extern src\main.asm             
-             TMR1_V_COUNT   0x000074       data     extern src\main.asm             
-             CURRENT_MODE   0x000075       data     extern src\main.asm             
-             MODE_REQUEST   0x000076       data     extern src\main.asm             
+        ADC_RESULT_BINARY   0x000073       data     extern src\main.asm             
+         ADC_RESULT_UNITY   0x000074       data     extern src\main.asm             
+       ADC_RESULT_DECIMAL   0x000075       data     extern src\main.asm             
+             TMR1_V_COUNT   0x000076       data     extern src\main.asm             
+             CURRENT_MODE   0x000077       data     extern src\main.asm             
+             MODE_REQUEST   0x000078       data     extern src\main.asm             
 
 

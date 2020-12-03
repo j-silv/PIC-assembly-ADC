@@ -1,4 +1,4 @@
-Message[302] SRC\MAIN.ASM 95 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\MAIN.ASM 109 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\MAIN.ASM 113 : Register in operand not in bank 0.  Ensure that bank bits are correct.
-Message[302] SRC\MAIN.ASM 121 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\MAIN.ASM 100 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\MAIN.ASM 114 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\MAIN.ASM 118 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] SRC\MAIN.ASM 126 : Register in operand not in bank 0.  Ensure that bank bits are correct.

@@ -11,7 +11,7 @@
 
         ; registers
         EXTERN       PTR_RESULT_MSG
-        EXTERN       ADC_RESULT_BINARY, ADC_UNITY_RESULT, ADC_DECIMAL_RESULT
+        EXTERN       ADC_RESULT_BINARY, ADC_RESULT_UNITY, ADC_RESULT_DECIMAL
 
         constant     ADC_BIN_VOLT_UNITY_RATIO = D'51'
         constant     ADC_BIN_VOLT_DECIMAL_RATIO = D'5'
@@ -70,12 +70,12 @@ ADIF_Callback
                               ; of the result message string
     movlw    (PTR_RESULT_MSG + UNITY_OFFSET)
     movwf    FSR              ; point to unity index in USART string
-    movf     ADC_UNITY_RESULT, W
+    movf     ADC_RESULT_UNITY, W
     movwf    INDF             ; place the ADC_UNITY_RESULT into the USART string
                               ; at the UNITY index
     movlw    (PTR_RESULT_MSG + DECIMAL_OFFSET)
     movwf    FSR              ; point to decimal index in USART string
-    movf     ADC_DECIMAL_RESULT, W
+    movf     ADC_RESULT_DECIMAL, W
     movwf    INDF             ; place the ADC_DECIMAL_RESULT into the USART string
                               ; at the DECIMAL index
 
@@ -161,28 +161,50 @@ START_ADC
 
 ADC_BIN_TO_DEC_TO_ASCII
     GLOBAL  ADC_BIN_TO_DEC_TO_ASCII
+
+    movlw   (ASCII_NUMBER_OFFSET - 0x01)
+    movwf   ADC_RESULT_UNITY            ; ADC_RESULT_UNITY currently contains 0x2F
+    movwf   ADC_RESULT_DECIMAL          ; ADC_RESULT_DECIMAL currently contains 0x2F
+                                        ; previous unity/decimal results are effectively erased
+    ; pull result from A/D Result High Register (ADRESH)
+    ; because the ADC is configured in left justified,
+    ; we should be pulling the 8 MSBs from the 10-bit result
     banksel ADRESH
-    movf    ADRESH,W                    ; pull result from A/D Result High Register (ADRESH)
-                                        ; because the ADC is configured in left justified,
-                                        ; we should be pulling the 8 MSBs from the 10-bit result
+    movf    ADRESH,W
+    movwf   ADC_RESULT_BINARY           ; save to dedicated register for subsequent subwf instructions
+
+; ------------------------------------
+;           UNITY calculation
+; ------------------------------------
+
+    ; first pass through this instruction block, ADC_RESULT_UNITY
+    ; will become 0x30 (0 in ASCII)
+    ; by preloading this register with ASCII_NUMBER_OFFSET - 1, the initial value is
+    ; effectively "set" to 0 in ASCII, without the need for extra gotos
 CALCULATE_UNITY_PLACE
-    sublw   ADC_BIN_VOLT_UNITY_RATIO    ; subtract 51 from binary result (1 volt corresponds to 51 in dec (ratio))
+    incf    ADC_RESULT_UNITY, F
+    movwf   ADC_RESULT_BINARY           ; save result of substraction (division "remainder")
+    movlw   ADC_BIN_VOLT_UNITY_RATIO    ; prepare substraction constant value in working reg
+
+    subwf   ADC_RESULT_BINARY, W        ; subtract 51 from binary result (1 volt corresponds to 51 in dec (ratio))
     btfsc   STATUS, C                   ; if the carry bit is SET, the result is POSITIVE
     goto    CALCULATE_UNITY_PLACE       ; this means that the UNITY value for the ADC result is not yet found
 
-    addlw   ASCII_NUMBER_OFFSET         ; add 0x30 to the unity result to convert it to an ASCII character
+; ------------------------------------
+;        DECIMAL calculation
+; ------------------------------------
 
-    movwf   ADC_UNITY_RESULT            ; place the unity value into a dedicated register for later
-                                        ; this is a shared register (unbanked) so no need to perform a banksel
-
+    movf    ADC_RESULT_BINARY, W        ; After UNITY calculation, the division "remainder" is placed
+                                        ; into working reg to calculate the DECIMAL place value of ADC result
 CALCULATE_DECIMAL_PLACE
-    sublw   ADC_BIN_VOLT_DECIMAL_RATIO  ; subtract 5 from the remainder of the previous unity calculation
-    btsfc   STATUS, C
-    goto    CALCULATE_DECIMAL_PLACE
+    incf    ADC_RESULT_DECIMAL, F
+    movwf   ADC_RESULT_BINARY           ; save result of substraction (division "remainder")
+    movlw   ADC_BIN_VOLT_DECIMAL_RATIO  ; prepare substraction constant value in working reg
 
-    addlw   ASCII_OFFSET                ; add 0x30 to the decimal result to convert it to an ASCII character
+    subwf   ADC_RESULT_BINARY, F        ; subtract 5 from binary result (0.1 volt corresponds to 5 in dec (ratio))
+    btfsc   STATUS, C                   ; if the carry bit is SET, the result is POSITIVE
+    goto    CALCULATE_DECIMAL_PLACE     ; this means that the DECIMAL value for the ADC result is not yet found
 
-    movwf   ADC_DECIMAL_RESULT
 
     return
 
