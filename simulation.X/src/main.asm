@@ -17,25 +17,30 @@
     ; import labels from other modules
     EXTERN      PTR_PROMPT_MSG, PTR_RESULT_MSG
     ; subprograms
-    EXTERN      copy_init_data, USART_Config, ADC_Config, TMR1_Config, PRINT_PROMPT_MSG
+    EXTERN      copy_init_data, PRINT_PROMPT_MSG
+    EXTERN      USART_Config, ADC_Config, TMR1_Config
 
     ; ces registres sont accesibles de n'importe quelle page de memoire
     ; I believe I have to go ahead and use UDATA... I should do that
-SHARED_REGS     UDATA_SHR
-W_TEMP          RES 1   ; pour context sauvegarde (ISR)
-STATUS_TEMP     RES 1   ; pour context sauvegarde (ISR)
-PCLATH_TEMP     RES 1   ; pour context sauvegarde (ISR)
-ADC_RESULT      RES 1   ; contient le resultat
-                        ; binaire (tension) de l'ADC
-TMR1_V_COUNT    RES 1   ; contient le nombre de fois le peripherique
-                        ; Timer1 a fait un overflow
-CURRENT_MODE    RES 1   ; contient le mode de fonctionnement actuel du systeme
-                        ; 'A' pour automatique, 'D' pour manuel
-MODE_REQUEST    RES 1   ; contient le mode de fonctionnement demande par
-                        ; l'utilisateur
+SHARED_REGS            UDATA_SHR
+W_TEMP                 RES 1   ; pour context sauvegarde (ISR)
+STATUS_TEMP            RES 1   ; pour context sauvegarde (ISR)
+PCLATH_TEMP            RES 1   ; pour context sauvegarde (ISR)
+ADC_RESULT_BINARY      RES 1   ; contient le resultat
+                               ; binaire (tension) de l'ADC
+ADC_RESULT_UNITY       RES 1   ; contient le resultat de la conversion UNITY
+ADC_RESULT_DECIMAL     RES 1   ; contient le resultat de la conversion DECIMAL
+TMR1_V_COUNT           RES 1   ; contient le nombre de fois le peripherique
+                               ; Timer1 a fait un overflow
+CURRENT_MODE           RES 1   ; contient le mode de fonctionnement actuel du systeme
+                               ; 'A' pour automatique, 'D' pour manuel
+MODE_REQUEST           RES 1   ; contient le mode de fonctionnement demande par
+                               ; l'utilisateur
 
     ; export labels to other modules
-    GLOBAL      W_TEMP, STATUS_TEMP, PCLATH_TEMP, ADC_RESULT, TMR1_V_COUNT, CURRENT_MODE, MODE_REQUEST
+    GLOBAL      W_TEMP, STATUS_TEMP, PCLATH_TEMP
+    GLOBAL      ADC_RESULT_BINARY, ADC_RESULT_UNITY, ADC_RESULT_DECIMAL
+    GLOBAL      TMR1_V_COUNT, CURRENT_MODE, MODE_REQUEST
 
 ; ==============================================================================
 ;                               configuration du uC

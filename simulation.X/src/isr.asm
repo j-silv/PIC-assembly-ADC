@@ -10,7 +10,7 @@
 ; ==============================================================================
 
     ; registers
-    EXTERN      W_TEMP, STATUS_TEMP,PCLATH_TEMP    ; these registers are shared across
+    EXTERN      W_TEMP, STATUS_TEMP, PCLATH_TEMP   ; these registers are shared across
                                                    ; all banks, thus no banksel instruction is
                                                    ; necessary to access them
      ; subprograms

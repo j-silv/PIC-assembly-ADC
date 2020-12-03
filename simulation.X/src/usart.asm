@@ -14,8 +14,6 @@
       EXTERN    START_ADC
 
                 constant        X_VAL_SPBRG = D'25'     ; prescaler valeur pour le baud-rate generateur
-                constant        UNITY_OFFSET = 0x00  	; this would correspond to the index that the letter 'U' occupies
-                constant        DECIMAL_OFFSET = 0x02	; this would correspond to the index that the letter 'D' occupies
 
                 ; UDATA  0x21
 ; PTR_PROMPT_MSG  RES 1   ; pointe a msg prompt pour l'utilisateur "Test\r\n"

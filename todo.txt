@@ -101,3 +101,5 @@ the RCIF_Callback subprogram will be called. This could potentially lead to issu
 Of course, if we disable the USART reception completely during data transfer
 then the user's commands during data transfer (for example, if in automatic mode)
 will be lost and not properly received. Thus, a compromise must be made
+
+Update block diagram with disabling/enabling of peripherals
