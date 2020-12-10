@@ -1,99 +1,18 @@
- *************NOTE: 12/1/20 TODO DURING LAB:****************************
+-place appropiate global/local variables in appropiate modules. for example,
+W_TEMP and STATUS_TEMP are only accessed in isr.asm module, so it makes more sense
+to place them there. TMR1_V_COUNT is only accessed between USART and TMR1 module,
+etc.
 
- -replace string message initializations with .idata section (using db directive
- for successive byte placements)
-IDATA
-PTR_RESULT_MSG	DB	"U,D V\r\n"
+-Configure master clear button to work on the PICDEM2 development kit (configuration word?)
+The Power Control (PCON) register contains flag bits
+to allow differentiation between a Power-on Reset
+(POR), a Brown-out Reset (BOR), a Watchdog Reset
+(WDT) and an external MCLR Reset. It seems that if POR and BOR bits = 1, then MCLR reset during normal
+operation is active.
+NOT_POR and _BOREN_ON. I think I have to perform an explicit write to the PCON register
+in the main config section (so that the MCLR works)
 
- -constants indicating location for UNITY_OFFSET, DECIMAL_OFFSET (indexes
- for result msg string)
-	CBLOCK
-UNITY_OFFSET	0x00	; this would correspond to the index that the letter 'U' occupies
-DECIMAL_OFFSET	0x02	; this would correspond to the index that the letter 'D' occupies
-
-Thus when saving result to the U location after binary to decimal to ASCII conversion, the PTR_RESULT_MSG
-could be loaded into FSR but with an offest of UNITY_OFFSET, and then the UNITY result could be written
-to the location pointed by the FSR
-
- -place appropiate global/local variables in appropiate modules. for example,
- W_TEMP and STATUS_TEMP are only accessed in isr.asm module, so it makes more sense
- to place them there. TMR1_V_COUNT is only accessed between USART and TMR1 module,
- etc.
-
--in IDATA section, the PTR_RESULT_MSG/PTR_PROMPT MSG label should reserve appropiate number of bytes
-needed to display message. -->
-	IDATA
-PTR_PROMPT_MSG DB "This is a test\r\n"
-Using "" adds a null terminated character to the string (only if the string is an odd number of bytes)
-
-
-If using IDATA, the values in memory are reserved BUT the intialization values are not put
-into these registers. The initialization values are in program memory!
-The application code must then copy the initialization values from program memory to data memory at runtime.
-
-The contents of the PCLATH register are
-unchanged after a RETURN or RETFIE
-instruction is executed. The user must
-rewrite the contents of the PCLATH register for any subsequent subroutine calls or
-GOTO instructions.
-
-There are the 14 bit core psuedoinstructions, which are effectively built-in predefined macros
-(see MPASM/MPLINK user guide appendix A.6) LCALL and LGOTO, which simplify this by
-generating the instructions for the PAGESEL for the destination and the CALL or GOTO.   e.g on a midrange PIC16
-
- *************SIMULATION DEBUGGING****************************
-Issue with using lgoto after btfsc/btfss (conditional branching)
-Since lgoto is a psuedoinstruction comprised of multiple instructions, the bit test
-instruction will give undesirable results
-
-Solution is to only use goto instructions (single instructions) after conditional
-branching tests, yet verify that there is no program memory page boundary crossing
-between goto labels in a particular object module
-
-It is also necessary to perform a PAGESEL macro instruction upon return from any
-subprogram called by a lcall psuedoinstruction, in case the subprogram is found
-in another program memory page. The PAGESEL ensures that any subsequent goto calls
-within that object module will branch to the correct label
-
-Also necessary in the ISR object module to temporarily save the context not
-only of the working reg and status reg, but also of the PCLATH register
-Before exiting the ISR, the PCALTH register should be stored to its original
-state once the ISR began, similarly to how W and STATUS are restored upon the
-ISR call
-
-***************MASTER CLEAR***********
-Work on how to enable MASTER CLR result with PICDEM2 development kit
-
-
-***********INTERRUPTS********
-Ensure that TXIE is RESET and only ENABLED once the ADIF is done with a conversion
-
-Bug -> because TXIF will always be high before a conversion starts,
-at the end of the ISR we will check this flag to see if we need to send a new
-character to the USART. We will thus end up sending a character even before
-we started the ADC and converted the value to ASCII
-
-Thus, simply disabling TXIE is not sufficient -> we have to disable the TRANSFER enable
-so that the TXIF becomes low and won't automatically start sending characters until
-the ADIF enables it and lets TXIF become HIGH and interrupt the processor
-
-Similar subtle bug with the TMR1 module... as soon as the TMR1 module is enabled,
-it will start overflowing and the overflow flag will not be cleared. Thus, as soon
-as an interrupt flag comes, the TMR1IF will be checked and the TMR1IF_Callback
-will be immediately executed. This is not what we want -> We want TMR1 to only be counting
-once we're in automatic mode, otherwise it should be disabled
-
-Thus the fixes are not only disabling the interrupt flags but also disabling the peripherals
-until we need them, so that the respective flags are not HIGH at the wrong
-times during the ISR flag checking
-
-For the TMR1 module, it would be also wise to CLEAR the current count, and
-reset it to zero, in case for example a automatic to manual mode is asked for. Once the user asks
-for an automatic mode , we want the count to reset from 0, not to wherever
-the count was interrupted from during the automatic to manual
-mode change
-
-Again, similiar issue with disabling the interrupt flag of the USART receive
+-issue with disabling the interrupt flag of the USART receive
 during message transfer. Although disabling the interrupt flag will of course
 no longer cause an interrupt to be fired by the USART, since the RCIF flag
 is checked during ISR routine, if the user sent a message during data transfer,
@@ -102,33 +21,18 @@ Of course, if we disable the USART reception completely during data transfer
 then the user's commands during data transfer (for example, if in automatic mode)
 will be lost and not properly received. Thus, a compromise must be made
 
-Update block diagram with disabling/enabling of peripherals
+-Update block diagram with disabling/enabling of peripherals
 
-**********************
+-program only works in debug mode (free running) and not in standard programming mode 
+possible configuration word changes (CPT for example). To test, reupload the ADC tutorial.asm 
+file that you know works and see if this is successfully executed by the Run, Make and Program Device
+build
 
-2 issues:
-the btfss bit is CLEARING the RCIF because we're reading from that register
-how are we supposed to test this flag then?
+-To prevent the code from running after
+programming, please select 'Hold in Reset'.
 
-another issue = vectoring into interrupt service routine had the pagesel wrong!! 
-this makes perfect sense since the label of main program infinite loop 
-is on a different page in memory. thus when we enter ISR and after saving context
-we have to do a PAGESEL in the ISR to update the page bits
+-LR and CR do not systematically work when using PuTTY. Although these characters \r \n are 
+stored in memory, the LR does not seem to control the serial terminal window. 
+A work-around is going into the PuTTY settings and checking "Implicit LR with every CR"
 
-the PC is loaded with the interrupt vector
-(0004h) after an interrupt fires BUT PCALTH BITS ARE NOT UPDATED
-
-another problem === if the decimal result is = 0, then i am in an endless loop 
-because the carry bit will continously be SET (0 and greater than 0 will 
-set the carry bit with a subtraction instruction) and so i have to also check
-the zero bit !! this would be the same problem if i had the value 5... i would never leave the loop 
-because the carry bit would always be set 
-
-*************** results***************
-
-it works in DEBUG mode and if in putty i put the following = 
-implicit LR with every CR. for some reason putty is not recongnizing my newline and carriage return 
-character. Ill have to see why later...
-also i can only get it to work in debug mode and not free running mode... i think it has 
-to do something with the config but im not sure... its also possible that there are some memory 
-issues but i cant get it to run just downloaded. 
+-update simulation source files with up to date project source files
