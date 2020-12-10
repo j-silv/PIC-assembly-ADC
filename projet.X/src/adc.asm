@@ -195,7 +195,24 @@ CALCULATE_UNITY_PLACE
 ; ------------------------------------
 
     movf    ADC_RESULT_BINARY, W        ; After UNITY calculation, the division "remainder" is placed
-                                        ; into working reg to calculate the DECIMAL place value of ADC result
+                                        ; working reg to test if the remainder is 50 (special case)
+
+; special case; the remainder = 50
+; if this test is not done, then the decimal place is going to show
+; the character (:), which is the ASCII result of incrementing the decimal 
+; place by 10 from 0
+
+TEST_IF_REMAINDER_IS_50
+    xorlw       D'50'                   ; this operation will make Z flag = 1 if it is the 
+                                        ; the special case that the remainder = 50
+    btfsc       STATUS, Z               ; if it is, then the decimal place should automatically become 
+                                        ; the 0 in ASCII and the unite should be "rounded" up 
+    goto        REMAINDER_IS_50
+
+    movf    ADC_RESULT_BINARY, W        ; After testing special case, the division "remainder" is placed
+                                        ; into working reg after xor operation 
+                                        ; to calculate the DECIMAL place value of ADC result
+
 CALCULATE_DECIMAL_PLACE
     incf    ADC_RESULT_DECIMAL, F
     movwf   ADC_RESULT_BINARY           ; save result of substraction (division "remainder")
@@ -206,7 +223,15 @@ CALCULATE_DECIMAL_PLACE
     goto    CALCULATE_DECIMAL_PLACE     ; this means that the DECIMAL value for the ADC result is not yet found
 
 
+EXIT_CONVERSION
     return
+    
+REMAINDER_IS_50
+    movlw   A'0'                        
+    movwf   ADC_RESULT_DECIMAL          ; the decimal place automatically takes the ASCII character 0
+    incf    ADC_RESULT_UNITY, F         ; round up the result (the unity is incremented)
+                                        ; this means that 4.9 would become 5, 3.9 would become 4, etc...
+    goto    EXIT_CONVERSION
 
 ; ----------------------------------
 ;          end module code

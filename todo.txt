@@ -36,3 +36,21 @@ stored in memory, the LR does not seem to control the serial terminal window.
 A work-around is going into the PuTTY settings and checking "Implicit LR with every CR"
 
 -update simulation source files with up to date project source files
+
+
+********* 12/10/2020 ********
+- able to successfully program PIC with working tutorial project (not in debug mode)
+- same config bits used
+
+- the message TESTTESTTESTTEST is printed... this suggests that the device might be wrapping around to address 0 and 
+executing the initial instructions several times. then potentially the device becomes latched up
+
+-the issue is the IDASM16 ROM copy subprogram. Manually setting the strings works fine
+
+-master clear works fine now that the program was the issue (the IDASM16 problem)
+
+-fixed sending a random character that started an automatic mode 
+
+-fixed showing a colon character if division remainder = 50 
+
+-Putty Doesn't transmit \n, regardless of option settings.

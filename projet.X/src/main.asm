@@ -14,11 +14,11 @@
 ;                           variables/constantes
 ; ==============================================================================
 
-    ; import labels from other modules
+   ; import labels from other modules
     EXTERN      PTR_PROMPT_MSG, PTR_RESULT_MSG
     ; subprograms
     EXTERN      copy_init_data, PRINT_PROMPT_MSG
-    EXTERN      USART_Config, ADC_Config, TMR1_Config
+    EXTERN      INITIALIZE_USART_STRINGS, USART_Config, ADC_Config, TMR1_Config
 
     ; ces registres sont accesibles de n'importe quelle page de memoire
     ; I believe I have to go ahead and use UDATA... I should do that
@@ -52,7 +52,7 @@ MODE_REQUEST           RES 1   ; contient le mode de fonctionnement demande par
     ; PIC16F877 Configuration Bit Settings
     ; turn on ICD with _DEBUG_OFF, because this
     ; clears the DEBUG bit in the config word (see doc)
-    __CONFIG _DEBUG_OFF & _LVP_OFF & _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _CPD_OFF & _WRT_ON
+    __CONFIG _LVP_OFF & _DEBUG_OFF & _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _CPD_OFF & _WRT_ON
 
 
 START_PROGRAM   CODE      0x000
@@ -70,16 +70,16 @@ START_PROGRAM   CODE      0x000
 
 MAIN_FILE       CODE
 
-; ENABLE_MCLR
-    ; banksel     PCON
-    ; ; this is to enable master clear button on PICDEM
-    ; movlw	    (1 << NOT_BOR | 1 << NOT_POR )
-    ; movwf       PCON
 
 MAIN_Config
-    lcall       copy_init_data
+    ; currently, the copy_init_data subprogram does not work 
+    ; thus, a manual intialization is done (INITIALIZE_USART_STRINGS) 
+    ;lcall       copy_init_data
+    
     ; the ADC result msg is initialized to "[X,X, ,V,\r,\n,\0]"
     ; the prompt terminal msg is initialized to "[T,E,S,T,\r,\n,\0]"
+
+    lcall       INITIALIZE_USART_STRINGS
     lcall       USART_Config
     lcall       ADC_Config
     lcall       TMR1_Config

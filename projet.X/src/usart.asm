@@ -61,16 +61,97 @@ USART_Config
 
     return
 
+
+
+; ==============================================================================
+;               Initialization of the prompt and result msgs
+;===============================================================================
+
+INITIALIZE_USART_STRINGS
+    GLOBAL   INITIALIZE_USART_STRINGS
+    
+    bankisel PTR_PROMPT_MSG     ; selectionner banque pour l'acces indirecte
+    movlw    PTR_PROMPT_MSG
+    movwf    FSR
+
+; ----------------------------------------------
+;           Initialize the prompt msg 
+; ----------------------------------------------
+   
+    movlw A'C'              ; premier byte du message prompt
+    movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
+                            ; est charge avec le premier byte du msg ('T') en ASCII
+
+    incf FSR,F              ; prochain byte
+    movlw A'A'              ; etc...
+    movwf INDF
+
+    incf FSR,F
+    movlw A'N'
+    movwf INDF
+
+    incf FSR,F
+    movlw A' '
+    movwf INDF
+
+    incf FSR,F              ; return carriage character
+    movlw A'\r'
+    movwf INDF
+
+    incf FSR,F              ; new line character
+    movlw A'\n'
+    movwf INDF
+
+    incf FSR,F              ; END OF STRING NULL CHARACTER
+    movlw A'\0'
+    movwf INDF
+    
+; ----------------------------------------------
+;           Initialize the result msg 
+; ----------------------------------------------
+
+    bankisel PTR_RESULT_MSG ; selectionner banque pour l'acces indirecte
+    movlw    PTR_RESULT_MSG 
+    movwf    FSR
+    
+    incf FSR,F              ; comma index of result msg string
+    movlw A','            
+    movwf INDF              
+
+    incf FSR,F              
+    incf FSR,F              ; empty space index of result msg string
+    
+    movlw A' '              
+    movwf INDF
+    
+    incf FSR,F              ; volts index of result msg string
+    movlw A'V'              
+    movwf INDF
+    
+    incf FSR,F              ; return carriage character
+    movlw A'\r'
+    movwf INDF
+
+    incf FSR,F              ; new line character
+    movlw A'\n'
+    movwf INDF
+
+    incf FSR,F              ; END OF STRING NULL CHARACTER
+    movlw A'\0'
+    movwf INDF
+
+    return 
+
 ; ==============================================================================
 ;               Print prompt message to PC terminal (polling)
-;==============================================================================
+;===============================================================================
 
 ; ----------------------------------------------
 ;      Print prompt via USART to PC terminal
 ; ----------------------------------------------
 
 PRINT_PROMPT_MSG
-    GLOBAL PRINT_PROMPT_MSG
+    GLOBAL      PRINT_PROMPT_MSG
     ; necessaire a faire un banksel/bankisel pour les deux, car ces 2 registres sont accede
     ; par 2 manieres different - addressage directe et addressage indirecte
     banksel     PIR1              ; selectionne le bank pour PIR1 this (RP1, RP0)
@@ -161,6 +242,10 @@ TEST_IF_D_LOWER
                                      ; the character 'd' was received
     btfsc       STATUS, Z
     goto        CONVERSION_REQUEST
+   
+INVALID_CHAR_SENT
+    goto        EXIT_RCIF_CALLBACK   ; otherwise, a character other than A,a,R,r,D,d was sent
+
 
 SET_AUTOMATIC_MODE
     movlw       A'A'
