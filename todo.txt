@@ -103,3 +103,32 @@ then the user's commands during data transfer (for example, if in automatic mode
 will be lost and not properly received. Thus, a compromise must be made
 
 Update block diagram with disabling/enabling of peripherals
+
+**********************
+
+2 issues:
+the btfss bit is CLEARING the RCIF because we're reading from that register
+how are we supposed to test this flag then?
+
+another issue = vectoring into interrupt service routine had the pagesel wrong!! 
+this makes perfect sense since the label of main program infinite loop 
+is on a different page in memory. thus when we enter ISR and after saving context
+we have to do a PAGESEL in the ISR to update the page bits
+
+the PC is loaded with the interrupt vector
+(0004h) after an interrupt fires BUT PCALTH BITS ARE NOT UPDATED
+
+another problem === if the decimal result is = 0, then i am in an endless loop 
+because the carry bit will continously be SET (0 and greater than 0 will 
+set the carry bit with a subtraction instruction) and so i have to also check
+the zero bit !! this would be the same problem if i had the value 5... i would never leave the loop 
+because the carry bit would always be set 
+
+*************** results***************
+
+it works in DEBUG mode and if in putty i put the following = 
+implicit LR with every CR. for some reason putty is not recongnizing my newline and carriage return 
+character. Ill have to see why later...
+also i can only get it to work in debug mode and not free running mode... i think it has 
+to do something with the config but im not sure... its also possible that there are some memory 
+issues but i cant get it to run just downloaded. 

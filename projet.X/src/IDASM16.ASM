@@ -234,4 +234,3 @@ _end_copy_init_data           ;We're done copying initialized data
    GLOBAL   copy_init_data
 
    END
-

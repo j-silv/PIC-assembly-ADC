@@ -10,7 +10,7 @@
 ; ==============================================================================
 
     ; registers
-    EXTERN      W_TEMP, STATUS_TEMP,PCLATH_TEMP    ; these registers are shared across
+    EXTERN      W_TEMP, STATUS_TEMP, PCLATH_TEMP   ; these registers are shared across
                                                    ; all banks, thus no banksel instruction is
                                                    ; necessary to access them
      ; subprograms
@@ -30,6 +30,10 @@ ISR_FILE    CODE        0x004             ; interrupt vector location pour le PI
             movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
             movf        PCLATH, W
             movwf       PCLATH_TEMP
+	    
+	    pagesel     RCIF_status       ; ensure that the PCLATH bits are set
+	                                  ; for this object module, since we could have vectored
+					  ; from another page in program memory (from main for example)
 
 ; -----------------------------------
 ;           Flag checking

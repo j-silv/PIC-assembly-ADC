@@ -33,6 +33,8 @@ TMR1_Config
     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 0<<TMR1ON )
     movwf       T1CON
     clrf        TMR1_V_COUNT   ; initaliser nombre d'overflow compte a 0
+    
+    return
 
 
 ; ==============================================================================
