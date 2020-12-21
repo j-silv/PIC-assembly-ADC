@@ -1,13 +1,12 @@
 ; ----------------------------------
-;              Timer1
+;              Timer 1
 ; ----------------------------------
 
     list p=16f877
     include "p16f877.inc"
 
-
 ; ==============================================================================
-;                          variables/constantes
+;                       variables, constants, labels
 ; ==============================================================================
     ; registers
     EXTERN      TMR1_V_COUNT
@@ -29,13 +28,18 @@ TMR1_Config
     ; Prescaler = 1:8
     ; Oscillator shut off
     ; Internal clock (Fosc/4) used
+
     ; Timer is NOT initially enabled (has to be enabled by USART receive MODE_REQUEST by user)
+    ; as soon as the TMR1 module is enabled,
+    ; it will start overflowing and the overflow flag will not be cleared. Thus, as soon
+    ; as an interrupt flag comes, the TMR1IF will be checked and the TMR1IF_Callback
+    ; will be immediately executed. This is not what we want -> We want TMR1 to only be counting
+    ; once we're in automatic mode, otherwise it should be disabled
     movlw       ( 1<<T1CKPS1 | 1<<T1CKPS0 | 0 << TMR1CS | 0<<TMR1ON )
     movwf       T1CON
     clrf        TMR1_V_COUNT   ; initaliser nombre d'overflow compte a 0
-    
-    return
 
+    return
 
 ; ==============================================================================
 ;                           Interrupt callbacks
@@ -50,7 +54,7 @@ TMR1IF_Callback
     banksel     TMR1_V_COUNT
 
 TEST_IF_SECOND_PASSED
-    movf        TMR1_V_COUNT, W    ; move what was received into working reg
+    movf        TMR1_V_COUNT, W
     xorlw       TMR1_OVERFLOWED    ; this operation will make Z flag = 1 if
                                    ; the TMR1 module has already overflowed
                                    ; this would mean that approximately 1 second has passed
@@ -62,7 +66,7 @@ INCR_TMR1_V_COUNT
     goto EXIT_TMR1IF_CALLBACK
 
 SECOND_PASSED
-    clrf        TMR1_V_COUNT       ; reset overflow count register (0 ms have passed)
+    clrf        TMR1_V_COUNT           ; reset overflow count register (0 ms have passed)
     lcall       START_ADC
     PAGESEL     EXIT_TMR1IF_CALLBACK   ; not technically necessary to perform
                                        ; a PAGESEL psuedoinstruction here since no subsequent

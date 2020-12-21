@@ -6,7 +6,7 @@
     include "p16f877.inc"
 
 ; ==============================================================================
-;                          variables/constantes
+;                       variables, constants, labels
 ; ==============================================================================
 
         ; registers
@@ -22,7 +22,6 @@
         constant     DECIMAL_OFFSET = 0x02	; this corresponds to the index that the DECIMAL value occupies
                                             ; in the USART string
 
-
 ; ==============================================================================
 ;                          peripheral configuration
 ; ==============================================================================
@@ -30,7 +29,7 @@ ADC_FILE       CODE
 ADC_Config
         GLOBAL       ADC_Config
         banksel      ADCON1
-        ; Left justify ,1 analog channel
+        ; Left justify, 1 analog channel
         ; VDD and VSS references
         movlw        ( 0<<ADFM | 1<<PCFG3 | 1<<PCFG2 | 1<<PCFG1 | 0<<PCFG0 )
         movwf        ADCON1
@@ -88,10 +87,10 @@ ADIF_Callback
     movlw PTR_RESULT_MSG      ; preload the FSR with the address to the
     movwf FSR                 ; ADC result (this will be the next msg to send)
 
-    ; a movlw then mowf  using bit-wise operations
-    ; cannot be done here, because the state of the TMR1IE is
-    ; not directly known (automatic/manual). this is why bsf/bsf
-    ; operations are performed instead
+    ; a movlw then mowf operation
+    ; cannot be done here, because the current mode of the system
+    ; is not directly known. bit-wise operations are performed to avoid
+    ; clobbering the state of the TMR1IE bit
     banksel     PIE1
     bcf         PIE1, RCIE   ; Receive USART flag disable
     banksel     TXSTA
@@ -106,18 +105,19 @@ ADIF_Callback
 ; ==============================================================================
 
 ; -------------------------------------
-;      Lire tension ADC (polling)
+;        Polling A/D conversion
 ; -------------------------------------
 
 Lire_Tension_Polling
            GLOBAL   Lire_Tension_Polling
            banksel  ADCON0
-start      bsf      ADCON0,GO            ; demarrage de la conversion
-non        btfsc    ADCON0,GO_NOT_DONE   ; attendre la fin de conversion
+start      bsf      ADCON0,GO
+
+non        btfsc    ADCON0,GO_NOT_DONE
            goto     non
-oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort)
-                                         ; de la conversion au reg de travail
-           movwf    ADC_RESULT_BINARY    ; sauvegarder resultat (tension) en memoire
+
+oui        movf     ADRESH,W
+           movwf    ADC_RESULT_BINARY
            return
 
 ; -------------------------------------
@@ -127,7 +127,7 @@ oui        movf     ADRESH,W             ; mettre resultat (8 bits de poids fort
 START_ADC
            GLOBAL      START_ADC
            banksel     ADCON0
-           bsf         ADCON0, GO     ; demarrage de la conversion
+           bsf         ADCON0, GO
            banksel     PIE1
            bsf         PIE1, ADIE     ; ADC conversion done interrupt flag enable
            return
@@ -199,18 +199,18 @@ CALCULATE_UNITY_PLACE
 
 ; special case; the remainder = 50
 ; if this test is not done, then the decimal place is going to show
-; the character (:), which is the ASCII result of incrementing the decimal 
+; the character (:), which is the ASCII result of incrementing the decimal
 ; place by 10 from 0
 
 TEST_IF_REMAINDER_IS_50
-    xorlw       D'50'                   ; this operation will make Z flag = 1 if it is the 
+    xorlw       D'50'                   ; this operation will make Z flag = 1 if it is the
                                         ; the special case that the remainder = 50
-    btfsc       STATUS, Z               ; if it is, then the decimal place should automatically become 
-                                        ; the 0 in ASCII and the unite should be "rounded" up 
+    btfsc       STATUS, Z               ; if it is, then the decimal place should automatically become
+                                        ; the 0 in ASCII and the unite should be "rounded" up
     goto        REMAINDER_IS_50
 
-    movf    ADC_RESULT_BINARY, W        ; After testing special case, the division "remainder" is placed
-                                        ; into working reg after xor operation 
+    movf        ADC_RESULT_BINARY, W    ; After testing special case, the division "remainder" is placed
+                                        ; into working reg after xor operation
                                         ; to calculate the DECIMAL place value of ADC result
 
 CALCULATE_DECIMAL_PLACE
@@ -225,9 +225,9 @@ CALCULATE_DECIMAL_PLACE
 
 EXIT_CONVERSION
     return
-    
+
 REMAINDER_IS_50
-    movlw   A'0'                        
+    movlw   A'0'
     movwf   ADC_RESULT_DECIMAL          ; the decimal place automatically takes the ASCII character 0
     incf    ADC_RESULT_UNITY, F         ; round up the result (the unity is incremented)
                                         ; this means that 4.9 would become 5, 3.9 would become 4, etc...

@@ -6,7 +6,7 @@
     include "p16f877.inc"
 
 ; ==============================================================================
-;                          variables/constantes
+;                       variables, constants, labels
 ; ==============================================================================
 
     ; registers
@@ -21,19 +21,19 @@
 ; ==============================================================================
 
 ; ------------------------------------
-;       Sauvegarder le contexte
+;           Context save
 ; ------------------------------------
 
-ISR_FILE    CODE        0x004             ; interrupt vector location pour le PIC uC
+ISR_FILE    CODE        0x004             ; interrupt vector location for the PIC uC
             movwf       W_TEMP            ; Copy W to TEMP register
             swapf       STATUS, W         ; Swap status to be saved into W
             movwf       STATUS_TEMP       ; Save status to bank zero STATUS_TEMP register
             movf        PCLATH, W
             movwf       PCLATH_TEMP
-	    
+
 	    pagesel     RCIF_status       ; ensure that the PCLATH bits are set
 	                                  ; for this object module, since we could have vectored
-					  ; from another page in program memory (from main for example)
+					                          ; from another page in program memory (from main for example)
 
 ; -----------------------------------
 ;           Flag checking

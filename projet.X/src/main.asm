@@ -1,115 +1,93 @@
-;______________________________________________________________________________
-; TP Master 1 - MNE (2020-2021)
-; Justin SILVER
-;
-; systeme d'acquisition, tension --> PC avec un
-; microcontroleur - PIC16F877
-;
-; Ce programme lit une tension binaire venant de l'ADC, le
-; convertit en decimal et apres en ASCII.
-; Ensuite, le resultat est envoye via USART au terminal PC
-; ______________________________________________________________________________
+; ----------------------------------------------------
+;            Configuration and main program
+; ----------------------------------------------------
+
+    list p=16f877
+    include "p16f877.inc"
 
 ; ==============================================================================
-;                           variables/constantes
+;                       variables, constants, labels
 ; ==============================================================================
 
-   ; import labels from other modules
-    EXTERN      PTR_PROMPT_MSG, PTR_RESULT_MSG
     ; subprograms
-    EXTERN      copy_init_data, PRINT_PROMPT_MSG
+    EXTERN      PRINT_PROMPT_MSG
     EXTERN      INITIALIZE_USART_STRINGS, USART_Config, ADC_Config, TMR1_Config
 
-    ; ces registres sont accesibles de n'importe quelle page de memoire
-    ; I believe I have to go ahead and use UDATA... I should do that
+; these registers are accessible from any register bank
 SHARED_REGS            UDATA_SHR
-W_TEMP                 RES 1   ; pour context sauvegarde (ISR)
-STATUS_TEMP            RES 1   ; pour context sauvegarde (ISR)
-PCLATH_TEMP            RES 1   ; pour context sauvegarde (ISR)
-ADC_RESULT_BINARY      RES 1   ; contient le resultat
-                               ; binaire (tension) de l'ADC
-ADC_RESULT_UNITY       RES 1   ; contient le resultat de la conversion UNITY
-ADC_RESULT_DECIMAL     RES 1   ; contient le resultat de la conversion DECIMAL
-TMR1_V_COUNT           RES 1   ; contient le nombre de fois le peripherique
-                               ; Timer1 a fait un overflow
-CURRENT_MODE           RES 1   ; contient le mode de fonctionnement actuel du systeme
-                               ; 'A' pour automatique, 'D' pour manuel
-MODE_REQUEST           RES 1   ; contient le mode de fonctionnement demande par
-                               ; l'utilisateur
+W_TEMP                 RES 1   ; for context saving (ISR)
+STATUS_TEMP            RES 1   ; for context saving (ISR)
+PCLATH_TEMP            RES 1   ; for context saving (ISR)
+ADC_RESULT_BINARY      RES 1   ; saves raw ADC result before conversion
+                               ; also holds intermediate calculations during conversion
+ADC_RESULT_UNITY       RES 1   ; contains the "ones" place value in ASCII
+ADC_RESULT_DECIMAL     RES 1   ; contains the "decimal" place value in ASCII
+TMR1_V_COUNT           RES 1   ; contains the number of times Timer1 has overflowed
+CURRENT_MODE           RES 1   ; contains the current mode of the system (automatic/manual)
+MODE_REQUEST           RES 1   ; contains the mode requested by the user (automatic/manual)
 
-    ; export labels to other modules
+    ; these labels are available to other modules
     GLOBAL      W_TEMP, STATUS_TEMP, PCLATH_TEMP
     GLOBAL      ADC_RESULT_BINARY, ADC_RESULT_UNITY, ADC_RESULT_DECIMAL
     GLOBAL      TMR1_V_COUNT, CURRENT_MODE, MODE_REQUEST
 
 ; ==============================================================================
-;                               configuration du uC
+;                         PIC16F877 configuration
 ; ==============================================================================
 
-    list p=16f877
-    include "p16f877.inc"
-
-    ; PIC16F877 Configuration Bit Settings
-    ; turn on ICD with _DEBUG_OFF, because this
-    ; clears the DEBUG bit in the config word (see doc)
+    ; PIC16F877 configuration word settings
     __CONFIG _LVP_OFF & _DEBUG_OFF & _FOSC_XT & _WDTE_OFF & _PWRTE_OFF & _CP_OFF & _BOREN_OFF & _CPD_OFF & _WRT_ON
 
-
 START_PROGRAM   CODE      0x000
-                nop              ; reserved for the  In-Circuit Debugger
-                lgoto      MAIN_Config
+                nop              ; reserved for the In-Circuit Debugger
+                lgoto     MAIN_Config
 
-#define INTERRUPTS_ON            ; si commenté, les interrupts ne sont pas enables
-                                 ; si c'est le cas, seulement le message de prompt
-                                 ; est affiché au terminal et le programme reste
-                                 ; dans la boucle while() sans en sortir
+#define INTERRUPTS_ON            ; if this is commented, then no interrupts will fire
+                                 ; and only the message prompt will be sent to the terminal
 
 ; ==============================================================================
-;                         configuration des periphiques
+;                        peripheral configuration
 ; ==============================================================================
 
 MAIN_FILE       CODE
 
-
 MAIN_Config
-    ; currently, the copy_init_data subprogram does not work 
-    ; thus, a manual intialization is done (INITIALIZE_USART_STRINGS) 
-    ;lcall       copy_init_data
-    
-    ; the ADC result msg is initialized to "[X,X, ,V,\r,\n,\0]"
-    ; the prompt terminal msg is initialized to "[T,E,S,T,\r,\n,\0]"
-
+    ; the ADC result msg is initialized to [X, X,  , V, \r, \n, \0]
+    ; the prompt terminal msg is initialized to [C, A, N, \r, \n, \0]
     lcall       INITIALIZE_USART_STRINGS
     lcall       USART_Config
     lcall       ADC_Config
     lcall       TMR1_Config
 
-
 ; ==============================================================================
-;               Load/initialize prompt and result msg and print prompt
+;                          print prompt message
 ; ==============================================================================
 
     ; the prompt terminal message is sent with polling method to PC terminal
     lcall        PRINT_PROMPT_MSG
 
-    ; Transmission is now disabled after printing prompt -> transmission will only be
-    ; enabled after ADIF goes high signaling the end of an ADC, and then the result
-    ; is transcoded in ASCII and saved to the RESULT_MSG string for
-    ; subsequent USART transmission. At this point TXEN is set
+    ; the USART transmission is disabled so that the interrupt flag, TXIF, stays low
+    ; until after an A/D conversion is complete
+    ; this is necessary because the TXIF flag will be checked in the ISR after
+    ; the ADC callback subprogram. It will always be high before an A/D conversion starts
+    ; even if the TXIE is low. As a result, if the TXEN bit is not cleared,
+    ; the TXIF subprogram will be called and a message will be sent via USART before
+    ; the A/D conversion starts
+    ; Thus, simply disabling TXIE is not sufficient to avoid branching into the
+    ; TXIF subprogram in the ISR
     banksel     TXSTA
     bcf         TXSTA, TXEN
 
 ; ==============================================================================
-;                           Interrupts configuration
+;                           interrupts configuration
 ; ==============================================================================
 
-; clear appropiate interrupt flags on startup
 CLR_PERIPH_FLAGS
   banksel     PIR1
   bcf         PIR1, TMR1IF
   bcf         PIR1, ADIF
 
-USART_TXIF_DISABLE          ; upon startup, only the RCIF should be enabled
+USART_TXIF_DISABLE
   banksel     PIE1
   bcf         PIE1, TXIE
 
@@ -120,17 +98,19 @@ ADC_ADIF_DISABLE
 #ifdef INTERRUPTS_ON
 PERIPH_INT_ENABLE
   banksel     INTCON
-  bsf         INTCON, PEIE  ; ADC/USART peripheral interrupt enable
+  bsf         INTCON, PEIE
 USART_RCIF_ENABLE
   banksel     PIE1
   bsf         PIE1, RCIE   ; Receive USART flag enable
+                           ; upon startup, only the RCIF should be enabled
+                           ; so the user can define the mode (automatic/manual)
 GLOBAL_INT_ENABLE
   banksel     INTCON
-  bsf         INTCON, GIE  ; global interrupt enable
+  bsf         INTCON, GIE
 #endif
 
 ; ==============================================================================
-;                       programme principal (boucle infinie)
+;                       main program (endless loop)
 ; ==============================================================================
 
 main

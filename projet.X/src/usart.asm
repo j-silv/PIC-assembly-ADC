@@ -1,25 +1,31 @@
 ; ----------------------------------------------------
-;        USART (mode asynchronous full-duplex)
+;                      USART
 ; ----------------------------------------------------
 
     list p=16f877
     include "p16f877.inc"
 
 ; ==============================================================================
-;                          variables/constantes
+;                       variables, constants, labels
 ; ==============================================================================
+
       ; registers
       EXTERN    CURRENT_MODE, MODE_REQUEST, TMR1_V_COUNT
+
       ; subprograms
       EXTERN    START_ADC
 
-      constant  X_VAL_SPBRG = D'25'     ; prescaler valeur pour le baud-rate generateur
+      ; USART baud-rate prescaler value
+      ; formula (asynchronous) = Baud-rate = FOSC/(16(X+1)) where X is the
+      ; value in the SPBRG register and is between 0-255
+      ; for a 9600 baud-rate with a FOSC of 4 MHz, we get X = 25
+      constant  X_VAL_SPBRG = D'25'
 
 USART_MSGS      IDATA
-PTR_PROMPT_MSG  DB  "TEST\r\n\0"    ; pointe a msg prompt pour l'utilisateur "Test\r\n"
-PTR_RESULT_MSG  DB  "X,X V\r\n\0"   ; pointe a ADC result qu'on va envoyer via mode auto/manual
+PTR_PROMPT_MSG  DB  "CAN\r\n\0"
+PTR_RESULT_MSG  DB  "X,X V\r\n\0"
 
-      ; export labels to other modules
+      ; these labels are available to other modules
       GLOBAL     PTR_PROMPT_MSG, PTR_RESULT_MSG
 
 ; ==============================================================================
@@ -28,40 +34,33 @@ PTR_RESULT_MSG  DB  "X,X V\r\n\0"   ; pointe a ADC result qu'on va envoyer via m
 
 USART_FILE    CODE
 USART_Config
-    GLOBAL      USART_Config    ; export sub-program label to other modules
-    ; entrees/sorties (RC6/TX/CK and RC7/RX/DT)
-    ; TXUSART EST OUTPUT (RC6 -> sortie)
-    ; RXUSART EST INPUT (RC7 -> entree)
+    GLOBAL      USART_Config
+    ; inputs/outputs (RC6/TX/CK and RC7/RX/DT)
+    ; TXUSART is an output (RC6 -> output)
+    ; RXUSART is an input (RC7 -> input)
     banksel     TRISC
     movlw       ( 0<<TRISC6 | 1<<TRISC7 )
     movwf       TRISC
 
-    ; USART baud-rate
-    ; Utilisation de HIGH SPEED mode (BRGH = 1) pour reduire l'erreur sur le baud rate
-    ; formule du baud rate = (Asynchronous) Baud Rate = FOSC/(16(X+1)) ou X  est la
-    ; valeur du registre SPBRG et est de 0...255
-    ; nous voulons 9600 baud avec un FOSC de 4 MHz, ca donne X = 25
+    ; USART baud-rate setup
     banksel     SPBRG
     movlw       X_VAL_SPBRG
     movwf       SPBRG
 
-    ; mode asynchrone
-    ; high speed pour reduire l'erreur
+    ; asynchronous mode
+    ; HIGH SPEED mode (BRGH = 1) to reduce error on the baud-rate generation
     ; 8-bit transmission mode
     ; enable transmission (for polling prompt msg transmission)
     banksel     TXSTA
     movlw       ( 1<<TXEN | 0<<TX9 | 1<<BRGH | 0<<SYNC )
     movwf       TXSTA
 
-    ; peripherique serie est "enabled"
-    ; enables continuous receive
+    ; USART receiver setup
     banksel     RCSTA
     movlw       ( 1<<SPEN | 1<<CREN )
     movwf       RCSTA
 
     return
-
-
 
 ; ==============================================================================
 ;               Initialization of the prompt and result msgs
@@ -69,21 +68,20 @@ USART_Config
 
 INITIALIZE_USART_STRINGS
     GLOBAL   INITIALIZE_USART_STRINGS
-    
-    bankisel PTR_PROMPT_MSG     ; selectionner banque pour l'acces indirecte
+
+    bankisel PTR_PROMPT_MSG
     movlw    PTR_PROMPT_MSG
     movwf    FSR
 
 ; ----------------------------------------------
-;           Initialize the prompt msg 
+;           Initialize the prompt msg
 ; ----------------------------------------------
-   
-    movlw A'C'              ; premier byte du message prompt
-    movwf INDF              ; Le registre pointe par PTR_PROMPT_MSG
-                            ; est charge avec le premier byte du msg ('T') en ASCII
 
-    incf FSR,F              ; prochain byte
-    movlw A'A'              ; etc...
+    movlw A'C'
+    movwf INDF
+
+    incf FSR,F
+    movlw A'A'
     movwf INDF
 
     incf FSR,F
@@ -94,53 +92,53 @@ INITIALIZE_USART_STRINGS
     movlw A' '
     movwf INDF
 
-    incf FSR,F              ; return carriage character
+    incf FSR,F
     movlw A'\r'
     movwf INDF
 
-    incf FSR,F              ; new line character
+    incf FSR,F
     movlw A'\n'
     movwf INDF
 
-    incf FSR,F              ; END OF STRING NULL CHARACTER
+    incf FSR,F
     movlw A'\0'
     movwf INDF
-    
+
 ; ----------------------------------------------
-;           Initialize the result msg 
+;           Initialize the result msg
 ; ----------------------------------------------
 
-    bankisel PTR_RESULT_MSG ; selectionner banque pour l'acces indirecte
-    movlw    PTR_RESULT_MSG 
+    bankisel PTR_RESULT_MSG
+    movlw    PTR_RESULT_MSG
     movwf    FSR
-    
-    incf FSR,F              ; comma index of result msg string
-    movlw A','            
-    movwf INDF              
 
-    incf FSR,F              
+    incf FSR,F              ; comma index of result msg string
+    movlw A','
+    movwf INDF
+
+    incf FSR,F
     incf FSR,F              ; empty space index of result msg string
-    
-    movlw A' '              
+
+    movlw A' '
     movwf INDF
-    
+
     incf FSR,F              ; volts index of result msg string
-    movlw A'V'              
+    movlw A'V'
     movwf INDF
-    
-    incf FSR,F              ; return carriage character
+
+    incf FSR,F
     movlw A'\r'
     movwf INDF
 
-    incf FSR,F              ; new line character
+    incf FSR,F
     movlw A'\n'
     movwf INDF
 
-    incf FSR,F              ; END OF STRING NULL CHARACTER
+    incf FSR,F
     movlw A'\0'
     movwf INDF
 
-    return 
+    return
 
 ; ==============================================================================
 ;               Print prompt message to PC terminal (polling)
@@ -152,10 +150,10 @@ INITIALIZE_USART_STRINGS
 
 PRINT_PROMPT_MSG
     GLOBAL      PRINT_PROMPT_MSG
-    ; necessaire a faire un banksel/bankisel pour les deux, car ces 2 registres sont accede
-    ; par 2 manieres different - addressage directe et addressage indirecte
-    banksel     PIR1              ; selectionne le bank pour PIR1 this (RP1, RP0)
-    bankisel    PTR_PROMPT_MSG    ; selectionne le bank pour PTR_PROMPT_MSG (IRP)
+    ; a banksel AND a bankisel are necessary because the 2 different registers
+    ; are accessed with 2 different methods (direct/indirect addressing)
+    banksel     PIR1              ; set the appropiate values of (RP1, RP0)
+    bankisel    PTR_PROMPT_MSG    ; set the appropiate value of (IRP)
 
     movlw       PTR_PROMPT_MSG
     movwf       FSR               ; point to the start of the prompt msg
@@ -169,7 +167,7 @@ TEST_END_OF_PROMPT_MSG
 
 TEST_TXIF
     btfss       PIR1, TXIF        ; test if the TX_REG is empty
-    goto        TEST_TXIF         ; sinon, attendre
+    goto        TEST_TXIF
 
     movf        INDF, W           ; place msg byte pointed to by FSR into work reg
     movwf       TXREG             ; send msg byte to USART TX register
@@ -242,25 +240,24 @@ TEST_IF_D_LOWER
                                      ; the character 'd' was received
     btfsc       STATUS, Z
     goto        CONVERSION_REQUEST
-   
+
 INVALID_CHAR_SENT
     goto        EXIT_RCIF_CALLBACK   ; otherwise, a character other than A,a,R,r,D,d was sent
 
 
 SET_AUTOMATIC_MODE
     movlw       A'A'
-    movwf       CURRENT_MODE         ; set the current mode reg to automatic
+    movwf       CURRENT_MODE
 
-    ; enable the TMR1
+    ; the TMR1 and its interrupt are enabled at this point because in automatic mode
+    ; the peripheral should be counting
     banksel     T1CON
     bsf         T1CON, TMR1ON
-
-    ; Timer1 interrupt enable
     banksel     PIE1
     bsf         PIE1, TMR1IE
 
     ; reset overflow count register (0 ms have passed)
-    ; necessary in case RCIF raised while TMR1_V_COUNT is at 1
+    ; necessary in case RCIF is raised while TMR1_V_COUNT is at 1
     ; if that happens, TMR1_V_COUNT would never be reset
     banksel     TMR1_V_COUNT
     clrf        TMR1_V_COUNT
@@ -268,13 +265,12 @@ SET_AUTOMATIC_MODE
 
 SET_MANUAL_MODE
     movlw       A'R'
-    movwf       CURRENT_MODE         ; set the current mode reg to manual
+    movwf       CURRENT_MODE
 
-    ; disable the TMR1
+    ; the TMR1 and its interrupt are disabled at this point because in manual mode
+    ; the peripheral should NOT be counting
     banksel     T1CON
     bcf         T1CON, TMR1ON
-
-    ; Timer1 interrupt disable
     banksel     PIE1
     bcf         PIE1, TMR1IE
 
@@ -284,8 +280,9 @@ CONVERSION_REQUEST
     movf        CURRENT_MODE, W
     xorlw       A'R'                 ; this operation will make Z flag = 1 if
                                      ; the current mode is manual! Thus the
-                                     ; user has correctly requested a conersion
-    btfss       STATUS, Z            ; performing a btfss instead of btfsc here
+                                     ; user has correctly requested a conversion
+
+    btfss       STATUS, Z            ; a btfss instead of a btfsc is performed here
                                      ; because if Z is set, then we DO want to
                                      ; start the ADC and if it isn't, then we want
                                      ; to exit this callback
@@ -304,8 +301,10 @@ EXIT_RCIF_CALLBACK
 
 TXIF_Callback
     GLOBAL      TXIF_Callback
-    bankisel    PTR_RESULT_MSG    ; this shouldn't really be necessary since
-                                  ; indirect addressing isn't used unexpectedly
+    bankisel    PTR_RESULT_MSG    ; ensuring the (RP0, RP1) bits are correctly set/reset
+                                  ; shouldn't really be necessary since
+                                  ; indirect addressing should not occur
+                                  ; elsewhere after printing the prompt message
 TEST_END_OF_RESULT_MSG
     movf        INDF, W           ; move current byte pointed by FSR to work reg
     xorlw       A'\0'             ; this operation will make Z flag = 1 if
@@ -322,10 +321,10 @@ SEND_NEW_BYTE
 
 RESULT_MSG_SENT
     banksel     TXSTA
-    bcf         TXSTA, TXEN ; disable transmission
+    bcf         TXSTA, TXEN       ; disable USART transmission
     banksel     PIE1
-    bcf         PIE1, TXIE  ; USART TX interrupt flag disable
-    bsf         PIE1, RCIE  ; USART RC interrupt flag enable
+    bcf         PIE1, TXIE
+    bsf         PIE1, RCIE
 
 EXIT_TXIF_CALLBACK
     return
